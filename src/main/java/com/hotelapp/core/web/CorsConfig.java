@@ -23,15 +23,11 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         String raw = appProperties.getAllowedOriginsRaw();
         if (raw != null && "*".equals(raw.trim())) {
-            configuration.setAllowedOriginPatterns(List.of("*"));
+            configuration.setAllowedOrigins(List.of("*"));
             configuration.setAllowedHeaders(List.of("*"));
             configuration.setAllowCredentials(false);
         } else {
-            List<String> origins =
-                    Arrays.stream(raw == null ? new String[0] : raw.split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .toList();
+            List<String> origins = parseOrigins(raw);
             configuration.setAllowedOriginPatterns(origins);
             configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
             configuration.setAllowCredentials(true);
@@ -42,5 +38,16 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private static List<String> parseOrigins(String raw) {
+        List<String> origins = Arrays.stream(raw == null ? new String[0] : raw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("ALLOWED_ORIGINS must include at least one origin");
+        }
+        return origins;
     }
 }

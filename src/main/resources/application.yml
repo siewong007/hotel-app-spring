@@ -2,10 +2,6 @@ server:
   port: ${BACKEND_PORT:3030}
 
 spring:
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hotelapp}
-    username: ${SPRING_DATASOURCE_USERNAME:hotelapp}
-    password: ${SPRING_DATASOURCE_PASSWORD:hotelapp}
   jackson:
     deserialization:
       fail-on-unknown-properties: false
@@ -15,8 +11,8 @@ spring:
       ddl-auto: update
 
 app:
-  jwt-secret: ${APP_JWT_SECRET:}
-  environment: ${APP_ENVIRONMENT:local}
-  desktop-mode: ${APP_DESKTOP_MODE:false}
-  allowed-origins-raw: ${APP_ALLOWED_ORIGINS_RAW:}
-  trust-proxy-headers: ${APP_TRUST_PROXY_HEADERS:false}
+  jwt-secret: ${JWT_SECRET:}
+  environment: ${ENVIRONMENT:${APP_ENV:development}}
+  desktop-mode: ${HOTEL_DESKTOP_MODE:false}
+  allowed-origins-raw: ${ALLOWED_ORIGINS:*}
+  trust-proxy-headers: ${TRUST_PROXY_HEADERS:false}
