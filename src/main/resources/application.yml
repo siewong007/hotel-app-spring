@@ -13,3 +13,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: update
+
+app:
+  jwt-secret: ${APP_JWT_SECRET:}
+  environment: ${APP_ENVIRONMENT:local}
+  desktop-mode: ${APP_DESKTOP_MODE:false}
+  allowed-origins-raw: ${APP_ALLOWED_ORIGINS_RAW:}
+  trust-proxy-headers: ${APP_TRUST_PROXY_HEADERS:false}
