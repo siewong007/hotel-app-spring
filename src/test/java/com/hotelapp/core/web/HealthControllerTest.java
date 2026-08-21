@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -18,9 +19,12 @@ class HealthControllerTest {
     private MockMvc mockMvc;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         jdbcTemplate = mock(JdbcTemplate.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new HealthController(jdbcTemplate)).build();
+        ObjectProvider<JdbcTemplate> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(jdbcTemplate);
+        mockMvc = MockMvcBuilders.standaloneSetup(new HealthController(provider)).build();
     }
 
     @Test

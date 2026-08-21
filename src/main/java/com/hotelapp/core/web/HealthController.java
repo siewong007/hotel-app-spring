@@ -1,6 +1,7 @@
 package com.hotelapp.core.web;
 
 import java.util.Map;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,13 +13,16 @@ public class HealthController {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public HealthController(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public HealthController(ObjectProvider<JdbcTemplate> jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate.getIfAvailable();
     }
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         try {
+            if (jdbcTemplate == null) {
+                throw new IllegalStateException("no datasource");
+            }
             jdbcTemplate.queryForObject("SELECT 1", Integer.class);
             return ResponseEntity.ok(Map.of("status", "ok"));
         } catch (Exception e) {
