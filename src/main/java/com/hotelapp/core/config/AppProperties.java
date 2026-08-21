@@ -6,10 +6,28 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AppProperties {
 
     private String jwtSecret;
+    private String jwtIssuer = "hotel-app-be";
+    private String jwtAudience = "hotel-web";
     private String environment;
     private boolean desktopMode;
     private String allowedOriginsRaw;
     private boolean trustProxyHeaders;
+
+    public String getJwtIssuer() {
+        return jwtIssuer;
+    }
+
+    public void setJwtIssuer(String jwtIssuer) {
+        this.jwtIssuer = jwtIssuer;
+    }
+
+    public String getJwtAudience() {
+        return jwtAudience;
+    }
+
+    public void setJwtAudience(String jwtAudience) {
+        this.jwtAudience = jwtAudience;
+    }
 
     public String getJwtSecret() {
         return jwtSecret;

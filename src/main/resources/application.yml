@@ -12,7 +12,9 @@ spring:
 
 app:
   jwt-secret: ${JWT_SECRET:}
-  environment: ${ENVIRONMENT:${APP_ENV:development}}
+  jwt-issuer: ${JWT_ISSUER:hotel-app-be}
+  jwt-audience: ${JWT_AUDIENCE:hotel-web}
+  environment: ${APP_ENV:${ENVIRONMENT:development}}
   desktop-mode: ${HOTEL_DESKTOP_MODE:false}
   allowed-origins-raw: ${ALLOWED_ORIGINS:*}
   trust-proxy-headers: ${TRUST_PROXY_HEADERS:false}
