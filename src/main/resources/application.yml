@@ -1,0 +1,15 @@
+server:
+  port: ${BACKEND_PORT:3030}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hotelapp}
+    username: ${SPRING_DATASOURCE_USERNAME:hotelapp}
+    password: ${SPRING_DATASOURCE_PASSWORD:hotelapp}
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
