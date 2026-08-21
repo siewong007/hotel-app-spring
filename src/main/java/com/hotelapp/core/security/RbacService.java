@@ -44,7 +44,16 @@ public class RbacService {
             FROM roles r
             INNER JOIN effective_roles er ON er.role_id = r.id""";
 
-    private record RbacSets(Set<String> permissions, Set<String> roles, Instant loadedAt) {
+    private static final String NEXT_GRANT_EXPIRY_SQL = """
+            SELECT LEAST(
+                (SELECT MIN(ur.expires_at) FROM user_roles ur
+                  WHERE ur.user_id = ? AND ur.expires_at > CURRENT_TIMESTAMP),
+                (SELECT MIN(tm.expires_at) FROM team_members tm
+                  WHERE tm.user_id = ? AND tm.expires_at > CURRENT_TIMESTAMP)
+            )""";
+
+    private record RbacSets(Set<String> permissions, Set<String> roles, Instant loadedAt,
+            long ttlSeconds) {
     }
 
     private final JdbcTemplate jdbcTemplate;
@@ -63,7 +72,7 @@ public class RbacService {
             return true;
         }
         int colon = permission.indexOf(':');
-        if (colon > 0) {
+        if (colon >= 0) {
             return sets.permissions().contains(permission.substring(0, colon) + ":manage");
         }
         return false;
@@ -80,7 +89,8 @@ public class RbacService {
     private RbacSets resolve(long userId) {
         synchronized (cache) {
             RbacSets hit = cache.get(userId);
-            if (hit != null && Duration.between(hit.loadedAt(), Instant.now()).getSeconds() < ttlSeconds) {
+            if (hit != null && Duration.between(hit.loadedAt(), Instant.now()).getSeconds() < hit
+                    .ttlSeconds()) {
                 return hit;
             }
         }
@@ -88,7 +98,14 @@ public class RbacService {
                 EFFECTIVE_PERMISSIONS_SQL, String.class, userId, userId));
         Set<String> roles = new HashSet<>(jdbcTemplate.queryForList(
                 EFFECTIVE_ROLE_NAMES_SQL, String.class, userId, userId));
-        RbacSets sets = new RbacSets(permissions, roles, Instant.now());
+        Long nextExpirySeconds = jdbcTemplate.queryForObject(
+                NEXT_GRANT_EXPIRY_SQL, Long.class, userId, userId);
+        long effectiveTtl = ttlSeconds;
+        if (nextExpirySeconds != null) {
+            long untilExpiry = Math.max(0, nextExpirySeconds - Instant.now().getEpochSecond());
+            effectiveTtl = Math.min(effectiveTtl, untilExpiry);
+        }
+        RbacSets sets = new RbacSets(permissions, roles, Instant.now(), effectiveTtl);
         synchronized (cache) {
             cache.put(userId, sets);
         }

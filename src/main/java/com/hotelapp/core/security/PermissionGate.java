@@ -33,8 +33,8 @@ public class PermissionGate {
             if (rbac.hasPermission(userId, permission)) {
                 return;
             }
+            log.warn("Permission denied: user {} lacks '{}'", userId, permission);
         }
-        log.warn("Permission denied: user {} lacks any of {}", userId, permissions);
         throw ApiError.forbidden(
                 "Missing one of required permissions: " + String.join(", ", permissions));
     }

@@ -31,7 +31,7 @@ public class JwtService {
     }
 
     public static void validateSecret(String secret) {
-        if (secret == null || secret.length() < MIN_JWT_SECRET_LEN) {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_JWT_SECRET_LEN) {
             throw new IllegalStateException(
                     "JWT_SECRET must be at least " + MIN_JWT_SECRET_LEN + " characters");
         }
@@ -90,16 +90,16 @@ public class JwtService {
     }
 
     private AuthClaims toAuthClaims(Claims claims) {
+        if (claims.get("username") == null || claims.getIssuedAt() == null
+                || !(claims.get("roles") instanceof List)) {
+            throw new JwtValidationException("Missing required claims");
+        }
         Long exp = claims.getExpiration() == null ? null : claims.getExpiration().getTime() / 1000;
         List<String> roles = new ArrayList<>();
-        Object rawRoles = claims.get("roles");
-        if (rawRoles instanceof List<?> list) {
-            for (Object item : list) {
-                roles.add(String.valueOf(item));
-            }
+        for (Object item : (List<?>) claims.get("roles")) {
+            roles.add(String.valueOf(item));
         }
-        String username =
-                claims.get("username") == null ? null : String.valueOf(claims.get("username"));
+        String username = String.valueOf(claims.get("username"));
         String sid = claims.get("sid") == null ? null : String.valueOf(claims.get("sid"));
         return new AuthClaims(
                 claims.getSubject(),

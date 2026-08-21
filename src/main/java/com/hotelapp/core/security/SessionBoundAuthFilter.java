@@ -28,8 +28,13 @@ public class SessionBoundAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        if (header == null) {
             filterChain.doFilter(request, response);
+            return;
+        }
+        if (!header.startsWith("Bearer ")) {
+            ApiErrorResponses.write(
+                    ApiError.unauthorized("Invalid authorization header format"), response);
             return;
         }
 

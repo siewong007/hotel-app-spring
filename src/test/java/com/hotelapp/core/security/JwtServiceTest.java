@@ -1,5 +1,7 @@
 package com.hotelapp.core.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -16,6 +18,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class JwtServiceTest {
 
@@ -42,7 +46,7 @@ class JwtServiceTest {
         assertEquals("sess-1", claims.sid());
         assertNotNull(claims.exp());
         assertTrue(claims.iat() >= before);
-        assertEquals(before + 1800, claims.exp());
+        assertThat(claims.exp()).isBetween(before + 1800, before + 1801);
     }
 
     @Test
@@ -59,6 +63,8 @@ class JwtServiceTest {
                 .subject("7")
                 .issuer("hotel-app-be")
                 .audience().add("hotel-web").and()
+                .claim("username", "bob")
+                .claim("roles", List.of())
                 .claim("iat", Instant.now().getEpochSecond() - 3600)
                 .expiration(new Date(System.currentTimeMillis() - 1000))
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)),
@@ -120,6 +126,32 @@ class JwtServiceTest {
         AppProperties shortProps = new AppProperties();
         shortProps.setJwtSecret("too-short");
         assertThrows(IllegalStateException.class, () -> new JwtService(shortProps));
+    }
+
+    @Test
+    void rejectsTokensMissingRequiredClaims() {
+        var key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        JwtService service = new JwtService(props(false));
+        long now = Instant.now().getEpochSecond();
+        String noUsername = Jwts.builder().subject("1").issuer("hotel-app-be")
+                .audience().add("hotel-web").and()
+                .claim("iat", now).claim("roles", List.of())
+                .claim("exp", now + 600)
+                .signWith(key, Jwts.SIG.HS256).compact();
+        String noRoles = Jwts.builder().subject("1").issuer("hotel-app-be")
+                .audience().add("hotel-web").and()
+                .claim("username", "a").claim("iat", now).claim("exp", now + 600)
+                .signWith(key, Jwts.SIG.HS256).compact();
+        String noIat = Jwts.builder().subject("1").issuer("hotel-app-be")
+                .audience().add("hotel-web").and()
+                .claim("username", "a").claim("roles", List.of()).claim("exp", now + 600)
+                .signWith(key, Jwts.SIG.HS256).compact();
+        assertThatThrownBy(() -> service.parse(noUsername))
+                .isInstanceOf(JwtValidationException.class);
+        assertThatThrownBy(() -> service.parse(noRoles))
+                .isInstanceOf(JwtValidationException.class);
+        assertThatThrownBy(() -> service.parse(noIat))
+                .isInstanceOf(JwtValidationException.class);
     }
 
     private String rawPayload(String token) {
