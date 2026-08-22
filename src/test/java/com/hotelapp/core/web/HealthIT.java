@@ -2,15 +2,13 @@ package com.hotelapp.core.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Map;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -24,31 +22,33 @@ class HealthIT {
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 
-    @DynamicPropertySource
-    static void datasourceProperties(DynamicPropertyRegistry registry) {
+    @org.springframework.test.context.DynamicPropertySource
+    static void datasourceProperties(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    @Autowired
-    private TestRestTemplate restTemplate;
+    @LocalServerPort
+    int port;
 
     @Test
-    void healthReturnsOkWhenDatabaseReachable() {
-        ResponseEntity<Map> response =
-                restTemplate.getForEntity("/health", Map.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).containsEntry("status", "ok");
+    void healthReturnsOkWhenDatabaseReachable() throws Exception {
+        HttpResponse<String> response = get("/health");
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"status\":\"ok\"");
     }
 
     @Test
-    void wsStatusIsPubliclyReachable() {
-        ResponseEntity<Map> response =
-                restTemplate.getForEntity("/ws/status", Map.class);
+    void wsStatusIsPubliclyReachable() throws Exception {
+        HttpResponse<String> response = get("/ws/status");
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"status\":\"connected\"");
+    }
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).containsEntry("status", "connected");
+    private HttpResponse<String> get(String path) throws Exception {
+        return HttpClient.newHttpClient().send(HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + path)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
     }
 }

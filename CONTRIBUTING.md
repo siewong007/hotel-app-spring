@@ -20,7 +20,7 @@ By participating in this project, you agree to abide by the [Code of Conduct](CO
 
 ### Initial Setup
 
-See [README.md](README.md) for installation and environment configuration. The stack is Java 21, Spring Boot 3.5.x, Maven, PostgreSQL 17, and bun for the bundled frontend.
+See [README.md](README.md) for installation and environment configuration. The stack is Java 21, Spring Boot 4.1.x, Maven, PostgreSQL 17, and bun for the bundled frontend.
 
 ### Development Commands
 

@@ -1,6 +1,6 @@
 package com.hotelapp.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.hotelapp.auth.dto.AccessSnapshot;
 import com.hotelapp.auth.dto.AuthResponse;
 import com.hotelapp.auth.dto.LoginRequest;
