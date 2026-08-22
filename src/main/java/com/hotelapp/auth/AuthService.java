@@ -343,7 +343,7 @@ public class AuthService {
         return HexFormat.of().formatHex(bytes);
     }
 
-    static String sha256Hex(String input) {
+    public static String sha256Hex(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
