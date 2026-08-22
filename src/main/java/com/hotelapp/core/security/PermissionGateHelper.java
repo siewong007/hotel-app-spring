@@ -21,4 +21,11 @@ public class PermissionGateHelper {
         }
         delegate.check(userId, permission);
     }
+
+    public static void checkAny(long userId, java.util.List<String> permissions) {
+        if (delegate == null) {
+            throw new IllegalStateException("PermissionGateHelper not initialized");
+        }
+        delegate.checkAny(userId, permissions);
+    }
 }
