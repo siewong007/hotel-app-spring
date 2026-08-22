@@ -13,26 +13,26 @@ import jakarta.persistence.UniqueConstraint;
 public class OnlineInventoryAllocationsEntity {
 
     @Id
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
     @Id
-    @Column(name = "stay_date")
+    @Column(name = "stay_date", columnDefinition = "date")
     private java.time.LocalDate stay_date;
 
-    @Column(name = "walk_in_reserved_rooms")
+    @Column(name = "walk_in_reserved_rooms", columnDefinition = "integer")
     private Integer walk_in_reserved_rooms;
 
-    @Column(name = "online_booking_enabled")
+    @Column(name = "online_booking_enabled", columnDefinition = "boolean")
     private Boolean online_booking_enabled;
 
     @Column(name = "custom_price", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal custom_price;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getRoomTypeId() { return room_type_id; }

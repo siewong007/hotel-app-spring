@@ -15,7 +15,7 @@ public class ServicesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -33,22 +33,22 @@ public class ServicesEntity {
     @Column(name = "unit_type", columnDefinition = "varchar(20)")
     private String unit_type;
 
-    @Column(name = "tax_rate", columnDefinition = "numeric(5,2)")
+    @Column(name = "tax_rate", columnDefinition = "numeric(5,2) DEFAULT 0")
     private java.math.BigDecimal tax_rate;
 
-    @Column(name = "is_taxable")
+    @Column(name = "is_taxable", columnDefinition = "boolean DEFAULT true")
     private Boolean is_taxable;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     @Column(name = "image_url", columnDefinition = "text")
     private String image_url;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

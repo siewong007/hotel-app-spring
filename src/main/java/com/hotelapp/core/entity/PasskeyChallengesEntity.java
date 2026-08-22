@@ -12,25 +12,25 @@ import jakarta.persistence.UniqueConstraint;
 public class PasskeyChallengesEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "challenge")
+    @Column(name = "challenge", columnDefinition = "bytea")
     private String challenge;
 
     @Column(name = "challenge_type", columnDefinition = "varchar(20)")
     private String challenge_type;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "used_at")
+    @Column(name = "used_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime used_at;
 
     public java.util.UUID getId() { return id; }

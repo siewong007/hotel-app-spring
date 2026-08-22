@@ -16,22 +16,22 @@ public class GuestPortalSessionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "token_hash", columnDefinition = "text")
     private String token_hash;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "last_used_at")
+    @Column(name = "last_used_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_used_at;
 
     public Long getId() { return id; }

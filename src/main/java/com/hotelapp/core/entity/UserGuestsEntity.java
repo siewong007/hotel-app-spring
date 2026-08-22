@@ -16,37 +16,37 @@ public class UserGuestsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "relationship_type", columnDefinition = "varchar(50)")
     private String relationship_type;
 
-    @Column(name = "can_book_for")
+    @Column(name = "can_book_for", columnDefinition = "boolean DEFAULT true")
     private Boolean can_book_for;
 
-    @Column(name = "can_view_bookings")
+    @Column(name = "can_view_bookings", columnDefinition = "boolean DEFAULT true")
     private Boolean can_view_bookings;
 
-    @Column(name = "can_modify")
+    @Column(name = "can_modify", columnDefinition = "boolean DEFAULT false")
     private Boolean can_modify;
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "linked_by")
+    @Column(name = "linked_by", columnDefinition = "bigint")
     private Long linked_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

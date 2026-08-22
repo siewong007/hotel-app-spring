@@ -16,7 +16,7 @@ public class RatePlansEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -37,61 +37,61 @@ public class RatePlansEntity {
     @Column(name = "adjustment_value", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal adjustment_value;
 
-    @Column(name = "valid_from")
+    @Column(name = "valid_from", columnDefinition = "date")
     private java.time.LocalDate valid_from;
 
-    @Column(name = "valid_to")
+    @Column(name = "valid_to", columnDefinition = "date")
     private java.time.LocalDate valid_to;
 
-    @Column(name = "applies_monday")
+    @Column(name = "applies_monday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_monday;
 
-    @Column(name = "applies_tuesday")
+    @Column(name = "applies_tuesday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_tuesday;
 
-    @Column(name = "applies_wednesday")
+    @Column(name = "applies_wednesday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_wednesday;
 
-    @Column(name = "applies_thursday")
+    @Column(name = "applies_thursday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_thursday;
 
-    @Column(name = "applies_friday")
+    @Column(name = "applies_friday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_friday;
 
-    @Column(name = "applies_saturday")
+    @Column(name = "applies_saturday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_saturday;
 
-    @Column(name = "applies_sunday")
+    @Column(name = "applies_sunday", columnDefinition = "boolean DEFAULT true")
     private Boolean applies_sunday;
 
-    @Column(name = "min_nights")
+    @Column(name = "min_nights", columnDefinition = "integer DEFAULT 1")
     private Integer min_nights;
 
-    @Column(name = "max_nights")
+    @Column(name = "max_nights", columnDefinition = "integer")
     private Integer max_nights;
 
-    @Column(name = "min_advance_booking")
+    @Column(name = "min_advance_booking", columnDefinition = "integer DEFAULT 0")
     private Integer min_advance_booking;
 
-    @Column(name = "max_advance_booking")
+    @Column(name = "max_advance_booking", columnDefinition = "integer")
     private Integer max_advance_booking;
 
-    @Column(name = "blackout_dates")
+    @Column(name = "blackout_dates", columnDefinition = "jsonb")
     private String blackout_dates;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "priority")
+    @Column(name = "priority", columnDefinition = "integer DEFAULT 0")
     private Integer priority;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

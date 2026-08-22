@@ -16,7 +16,7 @@ public class BookingChannelsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(120)")
@@ -34,13 +34,13 @@ public class BookingChannelsEntity {
     @Column(name = "default_commission_scope", columnDefinition = "varchar(20)")
     private String default_commission_scope;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

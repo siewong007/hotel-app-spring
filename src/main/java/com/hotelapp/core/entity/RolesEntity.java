@@ -16,7 +16,7 @@ public class RolesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(50)")
@@ -28,16 +28,16 @@ public class RolesEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "is_system_role")
+    @Column(name = "is_system_role", columnDefinition = "boolean DEFAULT false")
     private Boolean is_system_role;
 
-    @Column(name = "priority")
+    @Column(name = "priority", columnDefinition = "integer DEFAULT 0")
     private Integer priority;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

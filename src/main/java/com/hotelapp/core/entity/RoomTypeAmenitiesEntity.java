@@ -13,14 +13,14 @@ import jakarta.persistence.UniqueConstraint;
 public class RoomTypeAmenitiesEntity {
 
     @Id
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
     @Id
-    @Column(name = "amenity_id")
+    @Column(name = "amenity_id", columnDefinition = "bigint")
     private Long amenity_id;
 
-    @Column(name = "is_complimentary")
+    @Column(name = "is_complimentary", columnDefinition = "boolean DEFAULT true")
     private Boolean is_complimentary;
 
     public Long getRoomTypeId() { return room_type_id; }

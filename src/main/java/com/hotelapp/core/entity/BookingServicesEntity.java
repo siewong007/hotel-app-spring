@@ -12,16 +12,16 @@ import jakarta.persistence.UniqueConstraint;
 public class BookingServicesEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "service_id")
+    @Column(name = "service_id", columnDefinition = "bigint")
     private Long service_id;
 
-    @Column(name = "quantity")
+    @Column(name = "quantity", columnDefinition = "integer")
     private Integer quantity;
 
     @Column(name = "unit_price", columnDefinition = "numeric(10,2)")
@@ -30,7 +30,7 @@ public class BookingServicesEntity {
     @Column(name = "total_price", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal total_price;
 
-    @Column(name = "service_date")
+    @Column(name = "service_date", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime service_date;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
@@ -39,13 +39,13 @@ public class BookingServicesEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "delivered_by")
+    @Column(name = "delivered_by", columnDefinition = "bigint")
     private Long delivered_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
     public java.util.UUID getId() { return id; }

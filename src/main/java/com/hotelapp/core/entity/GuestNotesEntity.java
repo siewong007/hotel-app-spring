@@ -15,10 +15,10 @@ public class GuestNotesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "note_type", columnDefinition = "varchar(50)")
@@ -27,19 +27,19 @@ public class GuestNotesEntity {
     @Column(name = "content", columnDefinition = "text")
     private String content;
 
-    @Column(name = "is_alert")
+    @Column(name = "is_alert", columnDefinition = "boolean DEFAULT false")
     private Boolean is_alert;
 
-    @Column(name = "is_private")
+    @Column(name = "is_private", columnDefinition = "boolean DEFAULT false")
     private Boolean is_private;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

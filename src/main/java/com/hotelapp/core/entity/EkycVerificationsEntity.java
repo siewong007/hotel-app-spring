@@ -16,31 +16,31 @@ public class EkycVerificationsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "status", columnDefinition = "varchar(50)")
     private String status;
 
-    @Column(name = "assigned_reviewer_id")
+    @Column(name = "assigned_reviewer_id", columnDefinition = "bigint")
     private Long assigned_reviewer_id;
 
-    @Column(name = "reviewer_claimed_at")
+    @Column(name = "reviewer_claimed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime reviewer_claimed_at;
 
     @Column(name = "full_name", columnDefinition = "varchar(255)")
     private String full_name;
 
-    @Column(name = "date_of_birth")
+    @Column(name = "date_of_birth", columnDefinition = "date")
     private java.time.LocalDate date_of_birth;
 
     @Column(name = "nationality", columnDefinition = "varchar(100)")
@@ -64,10 +64,10 @@ public class EkycVerificationsEntity {
     @Column(name = "id_issuing_country", columnDefinition = "varchar(100)")
     private String id_issuing_country;
 
-    @Column(name = "id_issue_date")
+    @Column(name = "id_issue_date", columnDefinition = "date")
     private java.time.LocalDate id_issue_date;
 
-    @Column(name = "id_expiry_date")
+    @Column(name = "id_expiry_date", columnDefinition = "date")
     private java.time.LocalDate id_expiry_date;
 
     @Column(name = "id_front_image_path", columnDefinition = "text")
@@ -88,28 +88,28 @@ public class EkycVerificationsEntity {
     @Column(name = "provider_verification_result", columnDefinition = "varchar(80)")
     private String provider_verification_result;
 
-    @Column(name = "provider_raw_response")
+    @Column(name = "provider_raw_response", columnDefinition = "jsonb")
     private String provider_raw_response;
 
-    @Column(name = "ocr_data")
+    @Column(name = "ocr_data", columnDefinition = "jsonb")
     private String ocr_data;
 
-    @Column(name = "user_entered_data")
+    @Column(name = "user_entered_data", columnDefinition = "jsonb")
     private String user_entered_data;
 
     @Column(name = "document_authenticity_result", columnDefinition = "varchar(80)")
     private String document_authenticity_result;
 
-    @Column(name = "face_match_score")
+    @Column(name = "face_match_score", columnDefinition = "double precision")
     private Double face_match_score;
 
-    @Column(name = "face_match_passed")
+    @Column(name = "face_match_passed", columnDefinition = "boolean DEFAULT false")
     private Boolean face_match_passed;
 
-    @Column(name = "liveness_score")
+    @Column(name = "liveness_score", columnDefinition = "double precision")
     private Double liveness_score;
 
-    @Column(name = "liveness_passed")
+    @Column(name = "liveness_passed", columnDefinition = "boolean DEFAULT false")
     private Boolean liveness_passed;
 
     @Column(name = "duplicate_check_result", columnDefinition = "varchar(80)")
@@ -127,34 +127,34 @@ public class EkycVerificationsEntity {
     @Column(name = "geolocation", columnDefinition = "varchar(255)")
     private String geolocation;
 
-    @Column(name = "submission_metadata")
+    @Column(name = "submission_metadata", columnDefinition = "jsonb")
     private String submission_metadata;
 
-    @Column(name = "auto_verified")
+    @Column(name = "auto_verified", columnDefinition = "boolean DEFAULT false")
     private Boolean auto_verified;
 
-    @Column(name = "auto_verification_details")
+    @Column(name = "auto_verification_details", columnDefinition = "jsonb")
     private String auto_verification_details;
 
-    @Column(name = "manual_review_required")
+    @Column(name = "manual_review_required", columnDefinition = "boolean DEFAULT true")
     private Boolean manual_review_required;
 
     @Column(name = "risk_level", columnDefinition = "varchar(30)")
     private String risk_level;
 
-    @Column(name = "risk_score")
+    @Column(name = "risk_score", columnDefinition = "integer DEFAULT 0")
     private Integer risk_score;
 
-    @Column(name = "risk_flags")
+    @Column(name = "risk_flags", columnDefinition = "jsonb")
     private String risk_flags;
 
     @Column(name = "recommended_action", columnDefinition = "varchar(100)")
     private String recommended_action;
 
-    @Column(name = "potential_duplicate")
+    @Column(name = "potential_duplicate", columnDefinition = "boolean DEFAULT false")
     private Boolean potential_duplicate;
 
-    @Column(name = "fraud_suspected")
+    @Column(name = "fraud_suspected", columnDefinition = "boolean DEFAULT false")
     private Boolean fraud_suspected;
 
     @Column(name = "verification_notes", columnDefinition = "text")
@@ -169,28 +169,28 @@ public class EkycVerificationsEntity {
     @Column(name = "decision_reason", columnDefinition = "text")
     private String decision_reason;
 
-    @Column(name = "verified_by")
+    @Column(name = "verified_by", columnDefinition = "bigint")
     private Long verified_by;
 
-    @Column(name = "verified_at")
+    @Column(name = "verified_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime verified_at;
 
-    @Column(name = "self_checkin_enabled")
+    @Column(name = "self_checkin_enabled", columnDefinition = "boolean DEFAULT false")
     private Boolean self_checkin_enabled;
 
-    @Column(name = "self_checkin_activated_at")
+    @Column(name = "self_checkin_activated_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime self_checkin_activated_at;
 
-    @Column(name = "submitted_at")
+    @Column(name = "submitted_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime submitted_at;
 
-    @Column(name = "version")
+    @Column(name = "version", columnDefinition = "integer")
     private Integer version;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

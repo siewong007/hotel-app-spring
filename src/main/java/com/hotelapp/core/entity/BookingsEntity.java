@@ -16,10 +16,10 @@ public class BookingsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
     @Column(name = "booking_number", columnDefinition = "varchar(50)")
@@ -28,7 +28,7 @@ public class BookingsEntity {
     @Column(name = "folio_number", columnDefinition = "varchar(50)")
     private String folio_number;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "guest_name", columnDefinition = "varchar(255)")
@@ -40,28 +40,28 @@ public class BookingsEntity {
     @Column(name = "guest_phone", columnDefinition = "varchar(20)")
     private String guest_phone;
 
-    @Column(name = "corporate_account_id")
+    @Column(name = "corporate_account_id", columnDefinition = "uuid")
     private java.util.UUID corporate_account_id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
-    @Column(name = "check_in_date")
+    @Column(name = "check_in_date", columnDefinition = "date")
     private java.time.LocalDate check_in_date;
 
-    @Column(name = "check_out_date")
+    @Column(name = "check_out_date", columnDefinition = "date")
     private java.time.LocalDate check_out_date;
 
-    @Column(name = "adults")
+    @Column(name = "adults", columnDefinition = "integer")
     private Integer adults;
 
-    @Column(name = "children")
+    @Column(name = "children", columnDefinition = "integer DEFAULT 0")
     private Integer children;
 
-    @Column(name = "infants")
+    @Column(name = "infants", columnDefinition = "integer DEFAULT 0")
     private Integer infants;
 
-    @Column(name = "rate_plan_id")
+    @Column(name = "rate_plan_id", columnDefinition = "bigint")
     private Long rate_plan_id;
 
     @Column(name = "room_rate", columnDefinition = "numeric(10,2)")
@@ -70,13 +70,13 @@ public class BookingsEntity {
     @Column(name = "subtotal", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal subtotal;
 
-    @Column(name = "tax_amount", columnDefinition = "numeric(12,2)")
+    @Column(name = "tax_amount", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal tax_amount;
 
-    @Column(name = "discount_amount", columnDefinition = "numeric(12,2)")
+    @Column(name = "discount_amount", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal discount_amount;
 
-    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2)")
+    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2) DEFAULT 0.00")
     private java.math.BigDecimal discount_percentage;
 
     @Column(name = "total_amount", columnDefinition = "numeric(12,2)")
@@ -91,52 +91,52 @@ public class BookingsEntity {
     @Column(name = "rate_override_weekend", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal rate_override_weekend;
 
-    @Column(name = "daily_rates")
+    @Column(name = "daily_rates", columnDefinition = "jsonb")
     private String daily_rates;
 
-    @Column(name = "is_tourist")
+    @Column(name = "is_tourist", columnDefinition = "boolean DEFAULT false")
     private Boolean is_tourist;
 
-    @Column(name = "tourism_tax_amount", columnDefinition = "numeric(10,2)")
+    @Column(name = "tourism_tax_amount", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal tourism_tax_amount;
 
-    @Column(name = "extra_bed_count")
+    @Column(name = "extra_bed_count", columnDefinition = "integer DEFAULT 0")
     private Integer extra_bed_count;
 
-    @Column(name = "extra_bed_charge", columnDefinition = "numeric(10,2)")
+    @Column(name = "extra_bed_charge", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal extra_bed_charge;
 
-    @Column(name = "room_card_deposit", columnDefinition = "numeric(10,2)")
+    @Column(name = "room_card_deposit", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal room_card_deposit;
 
-    @Column(name = "late_checkout_penalty", columnDefinition = "numeric(10,2)")
+    @Column(name = "late_checkout_penalty", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal late_checkout_penalty;
 
-    @Column(name = "is_complimentary")
+    @Column(name = "is_complimentary", columnDefinition = "boolean DEFAULT false")
     private Boolean is_complimentary;
 
     @Column(name = "complimentary_reason", columnDefinition = "text")
     private String complimentary_reason;
 
-    @Column(name = "complimentary_start_date")
+    @Column(name = "complimentary_start_date", columnDefinition = "date")
     private java.time.LocalDate complimentary_start_date;
 
-    @Column(name = "complimentary_end_date")
+    @Column(name = "complimentary_end_date", columnDefinition = "date")
     private java.time.LocalDate complimentary_end_date;
 
     @Column(name = "original_total_amount", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal original_total_amount;
 
-    @Column(name = "complimentary_nights")
+    @Column(name = "complimentary_nights", columnDefinition = "integer DEFAULT 0")
     private Integer complimentary_nights;
 
-    @Column(name = "deposit_paid")
+    @Column(name = "deposit_paid", columnDefinition = "boolean DEFAULT false")
     private Boolean deposit_paid;
 
-    @Column(name = "deposit_amount", columnDefinition = "numeric(10,2)")
+    @Column(name = "deposit_amount", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal deposit_amount;
 
-    @Column(name = "deposit_paid_at")
+    @Column(name = "deposit_paid_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime deposit_paid_at;
 
     @Column(name = "status", columnDefinition = "varchar(30)")
@@ -154,40 +154,40 @@ public class BookingsEntity {
     @Column(name = "market_code", columnDefinition = "varchar(50)")
     private String market_code;
 
-    @Column(name = "company_id")
+    @Column(name = "company_id", columnDefinition = "bigint")
     private Long company_id;
 
     @Column(name = "company_name", columnDefinition = "varchar(255)")
     private String company_name;
 
-    @Column(name = "check_in_time")
+    @Column(name = "check_in_time", columnDefinition = "time without time zone")
     private java.time.LocalTime check_in_time;
 
-    @Column(name = "check_out_time")
+    @Column(name = "check_out_time", columnDefinition = "time without time zone")
     private java.time.LocalTime check_out_time;
 
-    @Column(name = "actual_check_in")
+    @Column(name = "actual_check_in", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime actual_check_in;
 
-    @Column(name = "actual_check_out")
+    @Column(name = "actual_check_out", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime actual_check_out;
 
-    @Column(name = "early_check_in")
+    @Column(name = "early_check_in", columnDefinition = "boolean DEFAULT false")
     private Boolean early_check_in;
 
-    @Column(name = "late_check_out")
+    @Column(name = "late_check_out", columnDefinition = "boolean DEFAULT false")
     private Boolean late_check_out;
 
-    @Column(name = "pre_checkin_completed")
+    @Column(name = "pre_checkin_completed", columnDefinition = "boolean DEFAULT false")
     private Boolean pre_checkin_completed;
 
-    @Column(name = "pre_checkin_completed_at")
+    @Column(name = "pre_checkin_completed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime pre_checkin_completed_at;
 
     @Column(name = "pre_checkin_token", columnDefinition = "varchar(255)")
     private String pre_checkin_token;
 
-    @Column(name = "pre_checkin_token_expires_at")
+    @Column(name = "pre_checkin_token_expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime pre_checkin_token_expires_at;
 
     @Column(name = "special_requests", columnDefinition = "text")
@@ -211,10 +211,10 @@ public class BookingsEntity {
     @Column(name = "commission_rate", columnDefinition = "numeric(5,2)")
     private java.math.BigDecimal commission_rate;
 
-    @Column(name = "cancelled_at")
+    @Column(name = "cancelled_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime cancelled_at;
 
-    @Column(name = "cancelled_by")
+    @Column(name = "cancelled_by", columnDefinition = "bigint")
     private Long cancelled_by;
 
     @Column(name = "cancellation_reason", columnDefinition = "text")
@@ -223,37 +223,37 @@ public class BookingsEntity {
     @Column(name = "cancellation_fee", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal cancellation_fee;
 
-    @Column(name = "is_posted")
+    @Column(name = "is_posted", columnDefinition = "boolean DEFAULT false")
     private Boolean is_posted;
 
-    @Column(name = "posted_date")
+    @Column(name = "posted_date", columnDefinition = "date")
     private java.time.LocalDate posted_date;
 
-    @Column(name = "posted_at")
+    @Column(name = "posted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime posted_at;
 
-    @Column(name = "posted_by")
+    @Column(name = "posted_by", columnDefinition = "bigint")
     private Long posted_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "tourism_billable_amount", columnDefinition = "numeric(10,2) GENERATED ALWAYS AS ( CASE WHEN is_tourist THEN COALESCE(tourism_tax_amount, (0)::numeric) ELSE (0)::numeric END)")
+    @Column(name = "tourism_billable_amount", columnDefinition = "numeric(10,2) GENERATED ALWAYS AS ( CASE WHEN is_tourist THEN COALESCE(tourism_tax_amount, (0)::numeric) ELSE (0)::numeric END) STORED")
     private java.math.BigDecimal tourism_billable_amount;
 
-    @Column(name = "cleaning_preference")
+    @Column(name = "cleaning_preference", columnDefinition = "boolean")
     private Boolean cleaning_preference;
 
-    @Column(name = "booking_channel_id")
+    @Column(name = "booking_channel_id", columnDefinition = "bigint")
     private Long booking_channel_id;
 
     @Column(name = "ota_reference", columnDefinition = "varchar(100)")
@@ -277,10 +277,10 @@ public class BookingsEntity {
     @Column(name = "portal_request_id", columnDefinition = "varchar(128)")
     private String portal_request_id;
 
-    @Column(name = "nights", insertable = false, updatable = false, columnDefinition = "integer GENERATED ALWAYS AS ((check_out_date - check_in_date))")
+    @Column(name = "nights", columnDefinition = "integer GENERATED ALWAYS AS ((check_out_date - check_in_date)) STORED")
     private String nights;
 
-    @Column(name = "total_guests", insertable = false, updatable = false, columnDefinition = "integer GENERATED ALWAYS AS (((adults + children) + infants))")
+    @Column(name = "total_guests", columnDefinition = "integer GENERATED ALWAYS AS (((adults + children) + infants)) STORED")
     private String total_guests;
 
     public Long getId() { return id; }

@@ -16,10 +16,10 @@ public class NotificationSubscriptionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "channel", columnDefinition = "varchar(16)")
@@ -28,7 +28,7 @@ public class NotificationSubscriptionsEntity {
     @Column(name = "topic", columnDefinition = "varchar(32)")
     private String topic;
 
-    @Column(name = "subscribed")
+    @Column(name = "subscribed", columnDefinition = "boolean")
     private Boolean subscribed;
 
     @Column(name = "source", columnDefinition = "varchar(32)")
@@ -37,10 +37,10 @@ public class NotificationSubscriptionsEntity {
     @Column(name = "policy_version", columnDefinition = "varchar(32)")
     private String policy_version;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

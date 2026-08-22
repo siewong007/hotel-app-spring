@@ -15,10 +15,10 @@ public class NotificationConsentEventsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "channel", columnDefinition = "varchar(16)")
@@ -39,7 +39,7 @@ public class NotificationConsentEventsEntity {
     @Column(name = "actor_type", columnDefinition = "varchar(8)")
     private String actor_type;
 
-    @Column(name = "actor_user_id")
+    @Column(name = "actor_user_id", columnDefinition = "bigint")
     private Long actor_user_id;
 
     @Column(name = "ip_address", columnDefinition = "varchar(64)")
@@ -48,7 +48,7 @@ public class NotificationConsentEventsEntity {
     @Column(name = "user_agent", columnDefinition = "text")
     private String user_agent;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

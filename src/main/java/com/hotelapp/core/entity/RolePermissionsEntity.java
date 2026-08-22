@@ -13,17 +13,17 @@ import jakarta.persistence.UniqueConstraint;
 public class RolePermissionsEntity {
 
     @Id
-    @Column(name = "role_id")
+    @Column(name = "role_id", columnDefinition = "bigint")
     private Long role_id;
 
     @Id
-    @Column(name = "permission_id")
+    @Column(name = "permission_id", columnDefinition = "bigint")
     private Long permission_id;
 
-    @Column(name = "granted_at")
+    @Column(name = "granted_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime granted_at;
 
-    @Column(name = "granted_by")
+    @Column(name = "granted_by", columnDefinition = "bigint")
     private Long granted_by;
 
     public Long getRoleId() { return role_id; }

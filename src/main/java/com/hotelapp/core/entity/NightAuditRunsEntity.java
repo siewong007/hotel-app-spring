@@ -16,61 +16,61 @@ public class NightAuditRunsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "audit_date")
+    @Column(name = "audit_date", columnDefinition = "date")
     private java.time.LocalDate audit_date;
 
-    @Column(name = "run_at")
+    @Column(name = "run_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime run_at;
 
-    @Column(name = "run_by")
+    @Column(name = "run_by", columnDefinition = "bigint")
     private Long run_by;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
     private String status;
 
-    @Column(name = "total_bookings_posted")
+    @Column(name = "total_bookings_posted", columnDefinition = "integer DEFAULT 0")
     private Integer total_bookings_posted;
 
-    @Column(name = "total_checkins")
+    @Column(name = "total_checkins", columnDefinition = "integer DEFAULT 0")
     private Integer total_checkins;
 
-    @Column(name = "total_checkouts")
+    @Column(name = "total_checkouts", columnDefinition = "integer DEFAULT 0")
     private Integer total_checkouts;
 
-    @Column(name = "total_revenue", columnDefinition = "numeric(12,2)")
+    @Column(name = "total_revenue", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal total_revenue;
 
-    @Column(name = "total_rooms_occupied")
+    @Column(name = "total_rooms_occupied", columnDefinition = "integer DEFAULT 0")
     private Integer total_rooms_occupied;
 
-    @Column(name = "total_rooms_available")
+    @Column(name = "total_rooms_available", columnDefinition = "integer DEFAULT 0")
     private Integer total_rooms_available;
 
-    @Column(name = "occupancy_rate", columnDefinition = "numeric(5,2)")
+    @Column(name = "occupancy_rate", columnDefinition = "numeric(5,2) DEFAULT 0")
     private java.math.BigDecimal occupancy_rate;
 
-    @Column(name = "rooms_available")
+    @Column(name = "rooms_available", columnDefinition = "integer DEFAULT 0")
     private Integer rooms_available;
 
-    @Column(name = "rooms_occupied")
+    @Column(name = "rooms_occupied", columnDefinition = "integer DEFAULT 0")
     private Integer rooms_occupied;
 
-    @Column(name = "rooms_reserved")
+    @Column(name = "rooms_reserved", columnDefinition = "integer DEFAULT 0")
     private Integer rooms_reserved;
 
-    @Column(name = "rooms_maintenance")
+    @Column(name = "rooms_maintenance", columnDefinition = "integer DEFAULT 0")
     private Integer rooms_maintenance;
 
-    @Column(name = "rooms_dirty")
+    @Column(name = "rooms_dirty", columnDefinition = "integer DEFAULT 0")
     private Integer rooms_dirty;
 
-    @Column(name = "payment_method_breakdown")
+    @Column(name = "payment_method_breakdown", columnDefinition = "jsonb")
     private String payment_method_breakdown;
 
-    @Column(name = "booking_channel_breakdown")
+    @Column(name = "booking_channel_breakdown", columnDefinition = "jsonb")
     private String booking_channel_breakdown;
 
     @Column(name = "notes", columnDefinition = "text")
@@ -79,7 +79,7 @@ public class NightAuditRunsEntity {
     @Column(name = "error_message", columnDefinition = "text")
     private String error_message;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

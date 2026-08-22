@@ -16,7 +16,7 @@ public class AmenitiesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -31,16 +31,16 @@ public class AmenitiesEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "is_paid")
+    @Column(name = "is_paid", columnDefinition = "boolean DEFAULT false")
     private Boolean is_paid;
 
     @Column(name = "price", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal price;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

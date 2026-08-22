@@ -16,7 +16,7 @@ public class EmailSuppressionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "email", columnDefinition = "varchar(255)")
@@ -31,7 +31,7 @@ public class EmailSuppressionsEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

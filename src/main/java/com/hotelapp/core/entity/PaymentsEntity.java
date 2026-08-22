@@ -16,13 +16,13 @@ public class PaymentsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
     @Column(name = "amount", columnDefinition = "numeric(12,2)")
@@ -67,7 +67,7 @@ public class PaymentsEntity {
     @Column(name = "refund_amount", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal refund_amount;
 
-    @Column(name = "refunded_at")
+    @Column(name = "refunded_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime refunded_at;
 
     @Column(name = "refund_reason", columnDefinition = "text")
@@ -76,7 +76,7 @@ public class PaymentsEntity {
     @Column(name = "gateway_refund_id", columnDefinition = "varchar(255)")
     private String gateway_refund_id;
 
-    @Column(name = "metadata")
+    @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 
     @Column(name = "notes", columnDefinition = "text")
@@ -85,16 +85,16 @@ public class PaymentsEntity {
     @Column(name = "receipt_url", columnDefinition = "text")
     private String receipt_url;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "processed_at")
+    @Column(name = "processed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime processed_at;
 
-    @Column(name = "processed_by")
+    @Column(name = "processed_by", columnDefinition = "bigint")
     private Long processed_by;
 
     @Column(name = "idempotency_key", columnDefinition = "varchar(160)")

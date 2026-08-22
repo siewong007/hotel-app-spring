@@ -13,40 +13,40 @@ import jakarta.persistence.UniqueConstraint;
 public class RefreshTokensEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
     @Column(name = "token_hash", columnDefinition = "varchar(255)")
     private String token_hash;
 
-    @Column(name = "device_info")
+    @Column(name = "device_info", columnDefinition = "jsonb")
     private String device_info;
 
-    @Column(name = "ip_address")
+    @Column(name = "ip_address", columnDefinition = "inet")
     private String ip_address;
 
     @Column(name = "user_agent", columnDefinition = "text")
     private String user_agent;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "last_used_at")
+    @Column(name = "last_used_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime last_used_at;
 
-    @Column(name = "is_revoked")
+    @Column(name = "is_revoked", columnDefinition = "boolean DEFAULT false")
     private Boolean is_revoked;
 
-    @Column(name = "revoked_at")
+    @Column(name = "revoked_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime revoked_at;
 
-    @Column(name = "revoked_by")
+    @Column(name = "revoked_by", columnDefinition = "bigint")
     private Long revoked_by;
 
     public java.util.UUID getId() { return id; }

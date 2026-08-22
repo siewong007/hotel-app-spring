@@ -16,19 +16,19 @@ public class RewardRedemptionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "membership_id")
+    @Column(name = "membership_id", columnDefinition = "bigint")
     private Long membership_id;
 
-    @Column(name = "reward_id")
+    @Column(name = "reward_id", columnDefinition = "bigint")
     private Long reward_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "points_spent")
+    @Column(name = "points_spent", columnDefinition = "integer")
     private Integer points_spent;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
@@ -37,13 +37,13 @@ public class RewardRedemptionsEntity {
     @Column(name = "redemption_code", columnDefinition = "varchar(50)")
     private String redemption_code;
 
-    @Column(name = "redeemed_at")
+    @Column(name = "redeemed_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime redeemed_at;
 
-    @Column(name = "used_at")
+    @Column(name = "used_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime used_at;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
     @Column(name = "notes", columnDefinition = "text")

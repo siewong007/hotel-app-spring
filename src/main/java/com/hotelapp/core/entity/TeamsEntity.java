@@ -15,10 +15,10 @@ public class TeamsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
     @Column(name = "code", columnDefinition = "varchar(50)")
@@ -30,22 +30,22 @@ public class TeamsEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "deleted_at")
+    @Column(name = "deleted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime deleted_at;
 
     public Long getId() { return id; }

@@ -16,16 +16,16 @@ public class RoomsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "room_number", columnDefinition = "varchar(20)")
     private String room_number;
 
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
-    @Column(name = "floor")
+    @Column(name = "floor", columnDefinition = "integer")
     private Integer floor;
 
     @Column(name = "building", columnDefinition = "varchar(50)")
@@ -40,67 +40,67 @@ public class RoomsEntity {
     @Column(name = "status_notes", columnDefinition = "text")
     private String status_notes;
 
-    @Column(name = "reserved_start_date")
+    @Column(name = "reserved_start_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime reserved_start_date;
 
-    @Column(name = "reserved_end_date")
+    @Column(name = "reserved_end_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime reserved_end_date;
 
-    @Column(name = "maintenance_start_date")
+    @Column(name = "maintenance_start_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime maintenance_start_date;
 
-    @Column(name = "maintenance_end_date")
+    @Column(name = "maintenance_end_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime maintenance_end_date;
 
-    @Column(name = "cleaning_start_date")
+    @Column(name = "cleaning_start_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime cleaning_start_date;
 
-    @Column(name = "cleaning_end_date")
+    @Column(name = "cleaning_end_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime cleaning_end_date;
 
-    @Column(name = "current_occupancy")
+    @Column(name = "current_occupancy", columnDefinition = "integer DEFAULT 0")
     private Integer current_occupancy;
 
-    @Column(name = "last_cleaned_at")
+    @Column(name = "last_cleaned_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_cleaned_at;
 
-    @Column(name = "last_inspected_at")
+    @Column(name = "last_inspected_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_inspected_at;
 
-    @Column(name = "inspected_by")
+    @Column(name = "inspected_by", columnDefinition = "bigint")
     private Long inspected_by;
 
-    @Column(name = "is_smoking")
+    @Column(name = "is_smoking", columnDefinition = "boolean DEFAULT false")
     private Boolean is_smoking;
 
-    @Column(name = "is_accessible")
+    @Column(name = "is_accessible", columnDefinition = "boolean DEFAULT false")
     private Boolean is_accessible;
 
-    @Column(name = "has_view")
+    @Column(name = "has_view", columnDefinition = "boolean DEFAULT false")
     private Boolean has_view;
 
     @Column(name = "view_type", columnDefinition = "varchar(50)")
     private String view_type;
 
-    @Column(name = "connecting_room_id")
+    @Column(name = "connecting_room_id", columnDefinition = "bigint")
     private Long connecting_room_id;
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     @Column(name = "last_posted_status", columnDefinition = "varchar(50)")
     private String last_posted_status;
 
-    @Column(name = "last_posted_date")
+    @Column(name = "last_posted_date", columnDefinition = "date")
     private java.time.LocalDate last_posted_date;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

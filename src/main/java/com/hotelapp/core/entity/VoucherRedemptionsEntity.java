@@ -15,19 +15,19 @@ public class VoucherRedemptionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "voucher_id")
+    @Column(name = "voucher_id", columnDefinition = "bigint")
     private Long voucher_id;
 
-    @Column(name = "promotion_id")
+    @Column(name = "promotion_id", columnDefinition = "bigint")
     private Long promotion_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "status", columnDefinition = "varchar(16)")
@@ -48,25 +48,25 @@ public class VoucherRedemptionsEntity {
     @Column(name = "net_total", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal net_total;
 
-    @Column(name = "applied_by")
+    @Column(name = "applied_by", columnDefinition = "bigint")
     private Long applied_by;
 
-    @Column(name = "applied_at")
+    @Column(name = "applied_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime applied_at;
 
-    @Column(name = "reversed_by")
+    @Column(name = "reversed_by", columnDefinition = "bigint")
     private Long reversed_by;
 
-    @Column(name = "reversed_at")
+    @Column(name = "reversed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime reversed_at;
 
     @Column(name = "reversal_reason", columnDefinition = "text")
     private String reversal_reason;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

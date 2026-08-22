@@ -15,43 +15,43 @@ public class LoyaltyTransactionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "member_id")
+    @Column(name = "member_id", columnDefinition = "bigint")
     private Long member_id;
 
-    @Column(name = "account_id")
+    @Column(name = "account_id", columnDefinition = "bigint")
     private Long account_id;
 
     @Column(name = "transaction_type", columnDefinition = "varchar(20)")
     private String transaction_type;
 
-    @Column(name = "points_delta")
+    @Column(name = "points_delta", columnDefinition = "integer")
     private Integer points_delta;
 
-    @Column(name = "available_delta")
+    @Column(name = "available_delta", columnDefinition = "integer")
     private Integer available_delta;
 
-    @Column(name = "balance_after")
+    @Column(name = "balance_after", columnDefinition = "integer")
     private Integer balance_after;
 
     @Column(name = "source_type", columnDefinition = "varchar(50)")
     private String source_type;
 
-    @Column(name = "source_id")
+    @Column(name = "source_id", columnDefinition = "bigint")
     private Long source_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "payment_id")
+    @Column(name = "payment_id", columnDefinition = "bigint")
     private Long payment_id;
 
-    @Column(name = "invoice_id")
+    @Column(name = "invoice_id", columnDefinition = "bigint")
     private Long invoice_id;
 
-    @Column(name = "related_transaction_id")
+    @Column(name = "related_transaction_id", columnDefinition = "bigint")
     private Long related_transaction_id;
 
     @Column(name = "description", columnDefinition = "text")
@@ -60,10 +60,10 @@ public class LoyaltyTransactionsEntity {
     @Column(name = "metadata", columnDefinition = "text")
     private String metadata;
 
-    @Column(name = "actor_user_id")
+    @Column(name = "actor_user_id", columnDefinition = "bigint")
     private Long actor_user_id;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

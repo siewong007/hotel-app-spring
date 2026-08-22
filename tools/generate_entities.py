@@ -90,6 +90,16 @@ def parse_tables(sql: str):
             col_name = col_match.group(1)
             rest = re.sub(r"\s+", " ", col_match.group(2)).strip()
             is_pk = bool(re.search(r"\bPRIMARY KEY\b", rest.upper()))
+            default_match = re.search(r"\bDEFAULT\b\s+(.+?)$", rest, flags=re.I)
+            sql_default = None
+            if default_match:
+                candidate = default_match.group(1).strip().rstrip(",")
+                if candidate.upper().startswith("CURRENT_TIMESTAMP"):
+                    sql_default = "DEFAULT CURRENT_TIMESTAMP"
+                elif re.match(r"^(true|false)$", candidate, flags=re.I):
+                    sql_default = f"DEFAULT {candidate.lower()}"
+                elif re.match(r"^-?[0-9]+(\.[0-9]+)?$", candidate):
+                    sql_default = f"DEFAULT {candidate}"
             type_part = re.split(r"\bPRIMARY KEY\b", rest, flags=re.I)[0]
             type_part = re.sub(r"\bCONSTRAINT\s+\S+", "", type_part, flags=re.I)
             type_part = re.sub(r"\bNOT NULL\b.*$", "", type_part, flags=re.I).strip()
@@ -101,11 +111,20 @@ def parse_tables(sql: str):
             gen_match = re.search(r"\bGENERATED\b.*$", rest, flags=re.I)
             if gen_match:
                 base_type_part = rest[:gen_match.start()].strip()
-                raw_def = re.sub(r"\s+", " ",
-                        (base_type_part + " " + gen_match.group(0)).strip())
+                gen_clause = gen_match.group(0).strip()
+                if not re.search(r"\bSTORED\s*$", gen_clause, flags=re.I):
+                    gen_clause += " STORED"
+                raw_def = re.sub(r"\s+", " ", (base_type_part + " " + gen_clause).strip())
             else:
                 raw_def = normalize_type(type_part)
-            columns.append((col_name, map_type(type_part), raw_def))
+            suffix = ""
+            if sql_default:
+                base_norm = normalize_type(type_part)
+                if base_norm.endswith(")"):
+                    pass
+                suffix = (" " + sql_default) if not (
+                        "generated always as" in raw_def.lower()) else ""
+            columns.append((col_name, map_type(type_part), raw_def + suffix))
             if is_pk:
                 pk_column = col_name
         if not columns:
@@ -239,6 +258,13 @@ def build_entity(table_name, columns, pk_column, composite, table_uniques):
         elif java_type == "java.math.BigDecimal" and col_def and col_def.startswith(
                 "numeric"):
             annotations[0] += f', columnDefinition = "{col_def}"'
+        elif java_type == "String" and col_def in (
+                "inet", "jsonb", "json", "cidr", "macaddr", "xml"):
+            annotations[0] += f', columnDefinition = "{col_def}"'
+        elif col_def and not col_def.startswith("public."):
+            annotations[0] += f', columnDefinition = "{col_def}"'
+        elif col_def:
+            annotations[0] += ', columnDefinition = "varchar(100)"'
         elif "generated always as" in (col_def or "").lower():
             annotations[0] += ', insertable = false, updatable = false'
             annotations[0] += f', columnDefinition = "{col_def}"'

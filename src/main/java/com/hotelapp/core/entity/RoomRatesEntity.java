@@ -16,25 +16,25 @@ public class RoomRatesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "rate_plan_id")
+    @Column(name = "rate_plan_id", columnDefinition = "bigint")
     private Long rate_plan_id;
 
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
     @Column(name = "price", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal price;
 
-    @Column(name = "effective_from")
+    @Column(name = "effective_from", columnDefinition = "date")
     private java.time.LocalDate effective_from;
 
-    @Column(name = "effective_to")
+    @Column(name = "effective_to", columnDefinition = "date")
     private java.time.LocalDate effective_to;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

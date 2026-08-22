@@ -12,31 +12,31 @@ import jakarta.persistence.UniqueConstraint;
 public class BookingModificationsEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
     @Column(name = "modification_type", columnDefinition = "varchar(50)")
     private String modification_type;
 
-    @Column(name = "old_value")
+    @Column(name = "old_value", columnDefinition = "jsonb")
     private String old_value;
 
-    @Column(name = "new_value")
+    @Column(name = "new_value", columnDefinition = "jsonb")
     private String new_value;
 
     @Column(name = "reason", columnDefinition = "text")
     private String reason;
 
-    @Column(name = "price_adjustment", columnDefinition = "numeric(10,2)")
+    @Column(name = "price_adjustment", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal price_adjustment;
 
-    @Column(name = "modified_at")
+    @Column(name = "modified_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime modified_at;
 
-    @Column(name = "modified_by")
+    @Column(name = "modified_by", columnDefinition = "bigint")
     private Long modified_by;
 
     public java.util.UUID getId() { return id; }

@@ -15,31 +15,31 @@ public class LoyaltyRedemptionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "member_id")
+    @Column(name = "member_id", columnDefinition = "bigint")
     private Long member_id;
 
-    @Column(name = "reward_id")
+    @Column(name = "reward_id", columnDefinition = "bigint")
     private Long reward_id;
 
-    @Column(name = "transaction_id")
+    @Column(name = "transaction_id", columnDefinition = "bigint")
     private Long transaction_id;
 
-    @Column(name = "points_spent")
+    @Column(name = "points_spent", columnDefinition = "integer")
     private Integer points_spent;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
     private String status;
 
-    @Column(name = "requested_at")
+    @Column(name = "requested_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime requested_at;
 
-    @Column(name = "reviewed_by")
+    @Column(name = "reviewed_by", columnDefinition = "bigint")
     private Long reviewed_by;
 
-    @Column(name = "reviewed_at")
+    @Column(name = "reviewed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime reviewed_at;
 
     @Column(name = "rejection_reason", columnDefinition = "text")
@@ -48,10 +48,10 @@ public class LoyaltyRedemptionsEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

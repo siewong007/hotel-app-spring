@@ -16,10 +16,10 @@ public class UsersEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
     @Column(name = "username", columnDefinition = "varchar(100)")
@@ -40,31 +40,31 @@ public class UsersEntity {
     @Column(name = "avatar_url", columnDefinition = "text")
     private String avatar_url;
 
-    @Column(name = "user_type")
+    @Column(name = "user_type", columnDefinition = "varchar(100)")
     private String user_type;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "is_verified")
+    @Column(name = "is_verified", columnDefinition = "boolean DEFAULT false")
     private Boolean is_verified;
 
-    @Column(name = "is_locked")
+    @Column(name = "is_locked", columnDefinition = "boolean DEFAULT false")
     private Boolean is_locked;
 
-    @Column(name = "is_super_admin")
+    @Column(name = "is_super_admin", columnDefinition = "boolean DEFAULT false")
     private Boolean is_super_admin;
 
     @Column(name = "email_verification_token", columnDefinition = "varchar(255)")
     private String email_verification_token;
 
-    @Column(name = "email_token_expires_at")
+    @Column(name = "email_token_expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime email_token_expires_at;
 
-    @Column(name = "two_factor_enabled")
+    @Column(name = "two_factor_enabled", columnDefinition = "boolean DEFAULT false")
     private Boolean two_factor_enabled;
 
     @Column(name = "two_factor_secret", columnDefinition = "varchar(255)")
@@ -73,34 +73,34 @@ public class UsersEntity {
     @Column(name = "two_factor_recovery_codes", columnDefinition = "text[]")
     private String[] two_factor_recovery_codes;
 
-    @Column(name = "failed_login_attempts")
+    @Column(name = "failed_login_attempts", columnDefinition = "integer DEFAULT 0")
     private Integer failed_login_attempts;
 
-    @Column(name = "locked_until")
+    @Column(name = "locked_until", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime locked_until;
 
-    @Column(name = "last_login_at")
+    @Column(name = "last_login_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_login_at;
 
-    @Column(name = "last_login_ip")
+    @Column(name = "last_login_ip", columnDefinition = "inet")
     private String last_login_ip;
 
-    @Column(name = "password_changed_at")
+    @Column(name = "password_changed_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime password_changed_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "deleted_at")
+    @Column(name = "deleted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime deleted_at;
 
     @Column(name = "google_subject", columnDefinition = "varchar(255)")

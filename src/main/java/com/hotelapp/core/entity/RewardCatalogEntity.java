@@ -15,10 +15,10 @@ public class RewardCatalogEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "program_id")
+    @Column(name = "program_id", columnDefinition = "bigint")
     private Long program_id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -30,19 +30,19 @@ public class RewardCatalogEntity {
     @Column(name = "category", columnDefinition = "varchar(50)")
     private String category;
 
-    @Column(name = "points_required")
+    @Column(name = "points_required", columnDefinition = "integer")
     private Integer points_required;
 
-    @Column(name = "quantity_available")
+    @Column(name = "quantity_available", columnDefinition = "integer")
     private Integer quantity_available;
 
-    @Column(name = "valid_from")
+    @Column(name = "valid_from", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime valid_from;
 
-    @Column(name = "valid_to")
+    @Column(name = "valid_to", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime valid_to;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     @Column(name = "terms_conditions", columnDefinition = "text")
@@ -51,10 +51,10 @@ public class RewardCatalogEntity {
     @Column(name = "image_url", columnDefinition = "text")
     private String image_url;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

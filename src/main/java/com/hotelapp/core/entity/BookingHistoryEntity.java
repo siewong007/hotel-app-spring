@@ -12,10 +12,10 @@ import jakarta.persistence.UniqueConstraint;
 public class BookingHistoryEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
     @Column(name = "previous_status", columnDefinition = "varchar(50)")
@@ -24,16 +24,16 @@ public class BookingHistoryEntity {
     @Column(name = "new_status", columnDefinition = "varchar(50)")
     private String new_status;
 
-    @Column(name = "changed_by")
+    @Column(name = "changed_by", columnDefinition = "bigint")
     private Long changed_by;
 
     @Column(name = "change_reason", columnDefinition = "text")
     private String change_reason;
 
-    @Column(name = "metadata")
+    @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public java.util.UUID getId() { return id; }

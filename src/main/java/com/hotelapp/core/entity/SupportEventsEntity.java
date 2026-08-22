@@ -15,16 +15,16 @@ public class SupportEventsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "conversation_id")
+    @Column(name = "conversation_id", columnDefinition = "bigint")
     private Long conversation_id;
 
-    @Column(name = "actor_guest_id")
+    @Column(name = "actor_guest_id", columnDefinition = "bigint")
     private Long actor_guest_id;
 
-    @Column(name = "actor_user_id")
+    @Column(name = "actor_user_id", columnDefinition = "bigint")
     private Long actor_user_id;
 
     @Column(name = "event_type", columnDefinition = "varchar(64)")
@@ -36,10 +36,10 @@ public class SupportEventsEntity {
     @Column(name = "to_status", columnDefinition = "varchar(32)")
     private String to_status;
 
-    @Column(name = "details")
+    @Column(name = "details", columnDefinition = "jsonb")
     private String details;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

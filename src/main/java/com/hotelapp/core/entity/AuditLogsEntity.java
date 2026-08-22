@@ -13,10 +13,10 @@ import jakarta.persistence.UniqueConstraint;
 public class AuditLogsEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
     @Column(name = "action", columnDefinition = "varchar(100)")
@@ -25,20 +25,20 @@ public class AuditLogsEntity {
     @Column(name = "resource_type", columnDefinition = "varchar(50)")
     private String resource_type;
 
-    @Column(name = "resource_id")
+    @Column(name = "resource_id", columnDefinition = "bigint")
     private Long resource_id;
 
-    @Column(name = "details")
+    @Column(name = "details", columnDefinition = "jsonb")
     private String details;
 
-    @Column(name = "ip_address")
+    @Column(name = "ip_address", columnDefinition = "inet")
     private String ip_address;
 
     @Column(name = "user_agent", columnDefinition = "text")
     private String user_agent;
 
     @Id
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

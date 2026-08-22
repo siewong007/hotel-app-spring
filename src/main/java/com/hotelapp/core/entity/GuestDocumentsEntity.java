@@ -15,10 +15,10 @@ public class GuestDocumentsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "document_type", columnDefinition = "varchar(50)")
@@ -30,19 +30,19 @@ public class GuestDocumentsEntity {
     @Column(name = "file_url", columnDefinition = "text")
     private String file_url;
 
-    @Column(name = "is_verified")
+    @Column(name = "is_verified", columnDefinition = "boolean DEFAULT false")
     private Boolean is_verified;
 
-    @Column(name = "verified_at")
+    @Column(name = "verified_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime verified_at;
 
-    @Column(name = "verified_by")
+    @Column(name = "verified_by", columnDefinition = "bigint")
     private Long verified_by;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

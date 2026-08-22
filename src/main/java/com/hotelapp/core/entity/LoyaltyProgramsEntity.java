@@ -16,7 +16,7 @@ public class LoyaltyProgramsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -25,19 +25,19 @@ public class LoyaltyProgramsEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "points_per_dollar", columnDefinition = "numeric(10,4)")
+    @Column(name = "points_per_dollar", columnDefinition = "numeric(10,4) DEFAULT 1.0")
     private java.math.BigDecimal points_per_dollar;
 
     @Column(name = "currency", columnDefinition = "varchar(3)")
     private String currency;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

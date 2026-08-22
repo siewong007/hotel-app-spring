@@ -24,34 +24,34 @@ public class RouteAccessPoliciesEntity {
     @Column(name = "nav_group", columnDefinition = "varchar(50)")
     private String nav_group;
 
-    @Column(name = "required_permissions")
+    @Column(name = "required_permissions", columnDefinition = "jsonb")
     private String required_permissions;
 
-    @Column(name = "required_roles")
+    @Column(name = "required_roles", columnDefinition = "jsonb")
     private String required_roles;
 
-    @Column(name = "excluded_roles")
+    @Column(name = "excluded_roles", columnDefinition = "jsonb")
     private String excluded_roles;
 
-    @Column(name = "nav_permissions")
+    @Column(name = "nav_permissions", columnDefinition = "jsonb")
     private String nav_permissions;
 
-    @Column(name = "nav_roles")
+    @Column(name = "nav_roles", columnDefinition = "jsonb")
     private String nav_roles;
 
-    @Column(name = "nav_excluded_roles")
+    @Column(name = "nav_excluded_roles", columnDefinition = "jsonb")
     private String nav_excluded_roles;
 
-    @Column(name = "is_navigation")
+    @Column(name = "is_navigation", columnDefinition = "boolean")
     private Boolean is_navigation;
 
-    @Column(name = "is_system_policy")
+    @Column(name = "is_system_policy", columnDefinition = "boolean")
     private Boolean is_system_policy;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public String getRouteId() { return route_id; }

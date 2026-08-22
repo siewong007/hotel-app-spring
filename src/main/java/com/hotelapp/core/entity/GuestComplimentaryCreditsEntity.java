@@ -16,25 +16,25 @@ public class GuestComplimentaryCreditsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
-    @Column(name = "nights_available")
+    @Column(name = "nights_available", columnDefinition = "integer")
     private Integer nights_available;
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

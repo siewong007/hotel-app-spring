@@ -15,19 +15,19 @@ public class PaymentReceiptRequestsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "payment_id")
+    @Column(name = "payment_id", columnDefinition = "bigint")
     private Long payment_id;
 
-    @Column(name = "requested_by")
+    @Column(name = "requested_by", columnDefinition = "bigint")
     private Long requested_by;
 
     @Column(name = "request_message", columnDefinition = "text")
     private String request_message;
 
-    @Column(name = "requested_at")
+    @Column(name = "requested_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime requested_at;
 
-    @Column(name = "uploaded_at")
+    @Column(name = "uploaded_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime uploaded_at;
 
     @Column(name = "receipt_path", columnDefinition = "text")

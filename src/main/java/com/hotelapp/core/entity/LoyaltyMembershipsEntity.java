@@ -16,43 +16,43 @@ public class LoyaltyMembershipsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "program_id")
+    @Column(name = "program_id", columnDefinition = "bigint")
     private Long program_id;
 
-    @Column(name = "tier_id")
+    @Column(name = "tier_id", columnDefinition = "bigint")
     private Long tier_id;
 
     @Column(name = "member_number", columnDefinition = "varchar(50)")
     private String member_number;
 
-    @Column(name = "points_balance")
+    @Column(name = "points_balance", columnDefinition = "integer DEFAULT 0")
     private Integer points_balance;
 
-    @Column(name = "lifetime_points")
+    @Column(name = "lifetime_points", columnDefinition = "integer DEFAULT 0")
     private Integer lifetime_points;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
     private String status;
 
-    @Column(name = "enrolled_at")
+    @Column(name = "enrolled_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime enrolled_at;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "last_activity_at")
+    @Column(name = "last_activity_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_activity_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

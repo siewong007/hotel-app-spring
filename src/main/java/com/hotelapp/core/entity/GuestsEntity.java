@@ -16,10 +16,10 @@ public class GuestsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
     @Column(name = "full_name", columnDefinition = "varchar(255)")
@@ -43,7 +43,7 @@ public class GuestsEntity {
     @Column(name = "alt_phone", columnDefinition = "varchar(20)")
     private String alt_phone;
 
-    @Column(name = "date_of_birth")
+    @Column(name = "date_of_birth", columnDefinition = "date")
     private java.time.LocalDate date_of_birth;
 
     @Column(name = "nationality", columnDefinition = "varchar(100)")
@@ -70,13 +70,13 @@ public class GuestsEntity {
     @Column(name = "country", columnDefinition = "varchar(100)")
     private String country;
 
-    @Column(name = "id_type")
+    @Column(name = "id_type", columnDefinition = "varchar(100)")
     private String id_type;
 
     @Column(name = "id_number", columnDefinition = "varchar(100)")
     private String id_number;
 
-    @Column(name = "id_expiry")
+    @Column(name = "id_expiry", columnDefinition = "date")
     private java.time.LocalDate id_expiry;
 
     @Column(name = "id_country", columnDefinition = "varchar(100)")
@@ -88,7 +88,7 @@ public class GuestsEntity {
     @Column(name = "communication_preference", columnDefinition = "varchar(50)")
     private String communication_preference;
 
-    @Column(name = "marketing_opt_in")
+    @Column(name = "marketing_opt_in", columnDefinition = "boolean DEFAULT false")
     private Boolean marketing_opt_in;
 
     @Column(name = "vip_status", columnDefinition = "varchar(20)")
@@ -109,49 +109,49 @@ public class GuestsEntity {
     @Column(name = "tags", columnDefinition = "text[]")
     private String[] tags;
 
-    @Column(name = "total_stays")
+    @Column(name = "total_stays", columnDefinition = "integer DEFAULT 0")
     private Integer total_stays;
 
-    @Column(name = "total_spend", columnDefinition = "numeric(12,2)")
+    @Column(name = "total_spend", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal total_spend;
 
     @Column(name = "average_rating", columnDefinition = "numeric(3,2)")
     private java.math.BigDecimal average_rating;
 
-    @Column(name = "complimentary_nights_credit")
+    @Column(name = "complimentary_nights_credit", columnDefinition = "integer DEFAULT 0")
     private Integer complimentary_nights_credit;
 
-    @Column(name = "is_blacklisted")
+    @Column(name = "is_blacklisted", columnDefinition = "boolean DEFAULT false")
     private Boolean is_blacklisted;
 
     @Column(name = "blacklist_reason", columnDefinition = "text")
     private String blacklist_reason;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "guest_type")
+    @Column(name = "guest_type", columnDefinition = "varchar(100)")
     private String guest_type;
 
-    @Column(name = "discount_percentage")
+    @Column(name = "discount_percentage", columnDefinition = "integer")
     private Integer discount_percentage;
 
-    @Column(name = "tourism_type")
+    @Column(name = "tourism_type", columnDefinition = "varchar(100)")
     private String tourism_type;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "deleted_at")
+    @Column(name = "deleted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime deleted_at;
 
     public Long getId() { return id; }

@@ -13,7 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 public class TwoFactorChallengesEntity {
 
     @Id
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
     @Column(name = "challenge_code", columnDefinition = "varchar(255)")
@@ -23,10 +23,10 @@ public class TwoFactorChallengesEntity {
     @Column(name = "purpose", columnDefinition = "varchar(50)")
     private String purpose;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getUserId() { return user_id; }

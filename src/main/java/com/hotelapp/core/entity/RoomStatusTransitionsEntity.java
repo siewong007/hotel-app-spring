@@ -20,7 +20,7 @@ public class RoomStatusTransitionsEntity {
     @Column(name = "to_status", columnDefinition = "varchar(20)")
     private String to_status;
 
-    @Column(name = "is_allowed")
+    @Column(name = "is_allowed", columnDefinition = "boolean DEFAULT true")
     private Boolean is_allowed;
 
     @Column(name = "requires_permission", columnDefinition = "varchar(100)")
@@ -29,7 +29,7 @@ public class RoomStatusTransitionsEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public String getFromStatus() { return from_status; }

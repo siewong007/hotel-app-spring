@@ -13,7 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 public class CorporateAccountsEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
     @Column(name = "name", columnDefinition = "varchar(255)")
@@ -37,37 +37,37 @@ public class CorporateAccountsEntity {
     @Column(name = "billing_phone", columnDefinition = "varchar(20)")
     private String billing_phone;
 
-    @Column(name = "credit_limit", columnDefinition = "numeric(12,2)")
+    @Column(name = "credit_limit", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal credit_limit;
 
-    @Column(name = "credit_balance", columnDefinition = "numeric(12,2)")
+    @Column(name = "credit_balance", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal credit_balance;
 
     @Column(name = "payment_terms", columnDefinition = "varchar(50)")
     private String payment_terms;
 
-    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2)")
+    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2) DEFAULT 0")
     private java.math.BigDecimal discount_percentage;
 
-    @Column(name = "contract_start")
+    @Column(name = "contract_start", columnDefinition = "date")
     private java.time.LocalDate contract_start;
 
-    @Column(name = "contract_end")
+    @Column(name = "contract_end", columnDefinition = "date")
     private java.time.LocalDate contract_end;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public java.util.UUID getId() { return id; }

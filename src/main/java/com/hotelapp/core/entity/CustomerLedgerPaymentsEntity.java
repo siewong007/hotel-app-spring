@@ -15,10 +15,10 @@ public class CustomerLedgerPaymentsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "ledger_id")
+    @Column(name = "ledger_id", columnDefinition = "bigint")
     private Long ledger_id;
 
     @Column(name = "payment_amount", columnDefinition = "numeric(10,2)")
@@ -30,7 +30,7 @@ public class CustomerLedgerPaymentsEntity {
     @Column(name = "payment_reference", columnDefinition = "varchar(255)")
     private String payment_reference;
 
-    @Column(name = "payment_date")
+    @Column(name = "payment_date", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime payment_date;
 
     @Column(name = "receipt_number", columnDefinition = "varchar(100)")
@@ -42,10 +42,10 @@ public class CustomerLedgerPaymentsEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "processed_by")
+    @Column(name = "processed_by", columnDefinition = "bigint")
     private Long processed_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     @Column(name = "idempotency_key", columnDefinition = "varchar(160)")

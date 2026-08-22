@@ -16,16 +16,16 @@ public class SupportConversationsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "conversation_number", columnDefinition = "varchar(40)")
     private String conversation_number;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
     @Column(name = "subject", columnDefinition = "varchar(160)")
@@ -43,28 +43,28 @@ public class SupportConversationsEntity {
     @Column(name = "assigned_team", columnDefinition = "varchar(64)")
     private String assigned_team;
 
-    @Column(name = "assigned_to_user_id")
+    @Column(name = "assigned_to_user_id", columnDefinition = "bigint")
     private Long assigned_to_user_id;
 
-    @Column(name = "escalation_level")
+    @Column(name = "escalation_level", columnDefinition = "smallint")
     private Short escalation_level;
 
-    @Column(name = "escalated_at")
+    @Column(name = "escalated_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime escalated_at;
 
-    @Column(name = "first_response_due_at")
+    @Column(name = "first_response_due_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime first_response_due_at;
 
-    @Column(name = "resolution_due_at")
+    @Column(name = "resolution_due_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime resolution_due_at;
 
-    @Column(name = "first_response_at")
+    @Column(name = "first_response_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime first_response_at;
 
-    @Column(name = "resolved_at")
+    @Column(name = "resolved_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime resolved_at;
 
-    @Column(name = "closed_at")
+    @Column(name = "closed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime closed_at;
 
     @Column(name = "resolution_code", columnDefinition = "varchar(64)")
@@ -73,19 +73,19 @@ public class SupportConversationsEntity {
     @Column(name = "resolution_summary", columnDefinition = "text")
     private String resolution_summary;
 
-    @Column(name = "reopen_count")
+    @Column(name = "reopen_count", columnDefinition = "integer")
     private Integer reopen_count;
 
-    @Column(name = "version")
+    @Column(name = "version", columnDefinition = "integer")
     private Integer version;
 
-    @Column(name = "last_activity_at")
+    @Column(name = "last_activity_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime last_activity_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

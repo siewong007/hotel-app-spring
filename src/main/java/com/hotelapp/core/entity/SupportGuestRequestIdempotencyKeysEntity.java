@@ -13,17 +13,17 @@ import jakarta.persistence.UniqueConstraint;
 public class SupportGuestRequestIdempotencyKeysEntity {
 
     @Id
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Id
     @Column(name = "idempotency_key", columnDefinition = "varchar(128)")
     private String idempotency_key;
 
-    @Column(name = "conversation_id")
+    @Column(name = "conversation_id", columnDefinition = "bigint")
     private Long conversation_id;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getGuestId() { return guest_id; }

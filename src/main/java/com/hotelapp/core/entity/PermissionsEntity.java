@@ -16,7 +16,7 @@ public class PermissionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(100)")
@@ -31,10 +31,10 @@ public class PermissionsEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "is_system_permission")
+    @Column(name = "is_system_permission", columnDefinition = "boolean DEFAULT false")
     private Boolean is_system_permission;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

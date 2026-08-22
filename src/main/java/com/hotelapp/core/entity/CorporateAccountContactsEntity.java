@@ -15,10 +15,10 @@ public class CorporateAccountContactsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "corporate_account_id")
+    @Column(name = "corporate_account_id", columnDefinition = "uuid")
     private java.util.UUID corporate_account_id;
 
     @Column(name = "name", columnDefinition = "varchar(255)")
@@ -33,10 +33,10 @@ public class CorporateAccountContactsEntity {
     @Column(name = "role", columnDefinition = "varchar(100)")
     private String role;
 
-    @Column(name = "is_primary")
+    @Column(name = "is_primary", columnDefinition = "boolean DEFAULT false")
     private Boolean is_primary;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

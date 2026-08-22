@@ -13,20 +13,20 @@ import jakarta.persistence.UniqueConstraint;
 public class UserRolesEntity {
 
     @Id
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
     @Id
-    @Column(name = "role_id")
+    @Column(name = "role_id", columnDefinition = "bigint")
     private Long role_id;
 
-    @Column(name = "assigned_at")
+    @Column(name = "assigned_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime assigned_at;
 
-    @Column(name = "assigned_by")
+    @Column(name = "assigned_by", columnDefinition = "bigint")
     private Long assigned_by;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
     public Long getUserId() { return user_id; }

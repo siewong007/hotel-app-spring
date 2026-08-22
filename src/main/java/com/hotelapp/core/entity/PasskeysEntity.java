@@ -13,19 +13,19 @@ import jakarta.persistence.UniqueConstraint;
 public class PasskeysEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "credential_id")
+    @Column(name = "credential_id", columnDefinition = "bytea")
     private String credential_id;
 
-    @Column(name = "public_key")
+    @Column(name = "public_key", columnDefinition = "bytea")
     private String public_key;
 
-    @Column(name = "counter")
+    @Column(name = "counter", columnDefinition = "bigint DEFAULT 0")
     private Long counter;
 
     @Column(name = "transports", columnDefinition = "text[]")
@@ -37,22 +37,22 @@ public class PasskeysEntity {
     @Column(name = "device_name", columnDefinition = "varchar(255)")
     private String device_name;
 
-    @Column(name = "aaguid")
+    @Column(name = "aaguid", columnDefinition = "uuid")
     private java.util.UUID aaguid;
 
-    @Column(name = "backup_eligible")
+    @Column(name = "backup_eligible", columnDefinition = "boolean DEFAULT false")
     private Boolean backup_eligible;
 
-    @Column(name = "backup_state")
+    @Column(name = "backup_state", columnDefinition = "boolean DEFAULT false")
     private Boolean backup_state;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "last_used_at")
+    @Column(name = "last_used_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime last_used_at;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     public java.util.UUID getId() { return id; }

@@ -15,10 +15,10 @@ public class RoomHistoryEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
     @Column(name = "from_status", columnDefinition = "varchar(20)")
@@ -30,19 +30,19 @@ public class RoomHistoryEntity {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "start_date")
+    @Column(name = "start_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime start_date;
 
-    @Column(name = "end_date")
+    @Column(name = "end_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime end_date;
 
-    @Column(name = "changed_by")
+    @Column(name = "changed_by", columnDefinition = "bigint")
     private Long changed_by;
 
-    @Column(name = "is_auto_generated")
+    @Column(name = "is_auto_generated", columnDefinition = "boolean DEFAULT false")
     private Boolean is_auto_generated;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

@@ -16,7 +16,7 @@ public class PromotionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "slug", columnDefinition = "varchar(120)")
@@ -49,55 +49,55 @@ public class PromotionsEntity {
     @Column(name = "currency", columnDefinition = "varchar(3)")
     private String currency;
 
-    @Column(name = "claim_starts_at")
+    @Column(name = "claim_starts_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime claim_starts_at;
 
-    @Column(name = "claim_ends_at")
+    @Column(name = "claim_ends_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime claim_ends_at;
 
-    @Column(name = "stay_starts_on")
+    @Column(name = "stay_starts_on", columnDefinition = "date")
     private java.time.LocalDate stay_starts_on;
 
-    @Column(name = "stay_ends_on")
+    @Column(name = "stay_ends_on", columnDefinition = "date")
     private java.time.LocalDate stay_ends_on;
 
-    @Column(name = "min_nights")
+    @Column(name = "min_nights", columnDefinition = "integer")
     private Integer min_nights;
 
-    @Column(name = "max_nights")
+    @Column(name = "max_nights", columnDefinition = "integer")
     private Integer max_nights;
 
     @Column(name = "min_subtotal", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal min_subtotal;
 
-    @Column(name = "claim_limit")
+    @Column(name = "claim_limit", columnDefinition = "integer")
     private Integer claim_limit;
 
-    @Column(name = "claimed_count")
+    @Column(name = "claimed_count", columnDefinition = "integer")
     private Integer claimed_count;
 
-    @Column(name = "per_guest_limit")
+    @Column(name = "per_guest_limit", columnDefinition = "integer")
     private Integer per_guest_limit;
 
-    @Column(name = "is_public")
+    @Column(name = "is_public", columnDefinition = "boolean")
     private Boolean is_public;
 
-    @Column(name = "is_cancellable")
+    @Column(name = "is_cancellable", columnDefinition = "boolean")
     private Boolean is_cancellable;
 
-    @Column(name = "version")
+    @Column(name = "version", columnDefinition = "integer")
     private Integer version;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

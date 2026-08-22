@@ -15,19 +15,19 @@ public class SupportMessagesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "conversation_id")
+    @Column(name = "conversation_id", columnDefinition = "bigint")
     private Long conversation_id;
 
     @Column(name = "author_type", columnDefinition = "varchar(16)")
     private String author_type;
 
-    @Column(name = "author_guest_id")
+    @Column(name = "author_guest_id", columnDefinition = "bigint")
     private Long author_guest_id;
 
-    @Column(name = "author_user_id")
+    @Column(name = "author_user_id", columnDefinition = "bigint")
     private Long author_user_id;
 
     @Column(name = "body", columnDefinition = "text")
@@ -36,7 +36,7 @@ public class SupportMessagesEntity {
     @Column(name = "client_message_id", columnDefinition = "varchar(128)")
     private String client_message_id;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

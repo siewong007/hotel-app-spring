@@ -16,34 +16,34 @@ public class LoyaltyAccountsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "member_id")
+    @Column(name = "member_id", columnDefinition = "bigint")
     private Long member_id;
 
-    @Column(name = "current_tier_id")
+    @Column(name = "current_tier_id", columnDefinition = "bigint")
     private Long current_tier_id;
 
-    @Column(name = "lifetime_points")
+    @Column(name = "lifetime_points", columnDefinition = "integer")
     private Integer lifetime_points;
 
-    @Column(name = "qualifying_points")
+    @Column(name = "qualifying_points", columnDefinition = "integer")
     private Integer qualifying_points;
 
-    @Column(name = "qualifying_nights")
+    @Column(name = "qualifying_nights", columnDefinition = "integer")
     private Integer qualifying_nights;
 
     @Column(name = "qualifying_spend", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal qualifying_spend;
 
-    @Column(name = "tier_evaluation_year")
+    @Column(name = "tier_evaluation_year", columnDefinition = "integer")
     private Integer tier_evaluation_year;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

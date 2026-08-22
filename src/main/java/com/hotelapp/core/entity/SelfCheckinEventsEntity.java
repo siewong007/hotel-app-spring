@@ -15,28 +15,28 @@ public class SelfCheckinEventsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "ekyc_verification_id")
+    @Column(name = "ekyc_verification_id", columnDefinition = "bigint")
     private Long ekyc_verification_id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "checked_in_at")
+    @Column(name = "checked_in_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime checked_in_at;
 
-    @Column(name = "room_key_issued")
+    @Column(name = "room_key_issued", columnDefinition = "boolean DEFAULT false")
     private Boolean room_key_issued;
 
-    @Column(name = "digital_key_sent")
+    @Column(name = "digital_key_sent", columnDefinition = "boolean DEFAULT false")
     private Boolean digital_key_sent;
 
     @Column(name = "device_type", columnDefinition = "varchar(100)")
@@ -60,7 +60,7 @@ public class SelfCheckinEventsEntity {
     @Column(name = "user_agent", columnDefinition = "text")
     private String user_agent;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

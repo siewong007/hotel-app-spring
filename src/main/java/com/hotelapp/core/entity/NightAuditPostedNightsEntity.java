@@ -16,13 +16,13 @@ public class NightAuditPostedNightsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "audit_date")
+    @Column(name = "audit_date", columnDefinition = "date")
     private java.time.LocalDate audit_date;
 
     @Column(name = "room_rate", columnDefinition = "numeric(10,2)")
@@ -46,13 +46,13 @@ public class NightAuditPostedNightsEntity {
     @Column(name = "total_posted", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal total_posted;
 
-    @Column(name = "audit_run_id")
+    @Column(name = "audit_run_id", columnDefinition = "bigint")
     private Long audit_run_id;
 
-    @Column(name = "posted_at")
+    @Column(name = "posted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime posted_at;
 
-    @Column(name = "posted_by")
+    @Column(name = "posted_by", columnDefinition = "bigint")
     private Long posted_by;
 
     public Long getId() { return id; }

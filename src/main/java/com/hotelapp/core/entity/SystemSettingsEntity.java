@@ -16,7 +16,7 @@ public class SystemSettingsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "key", columnDefinition = "varchar(100)")
@@ -34,22 +34,22 @@ public class SystemSettingsEntity {
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "is_public")
+    @Column(name = "is_public", columnDefinition = "boolean DEFAULT false")
     private Boolean is_public;
 
-    @Column(name = "is_encrypted")
+    @Column(name = "is_encrypted", columnDefinition = "boolean DEFAULT false")
     private Boolean is_encrypted;
 
     @Column(name = "validation_pattern", columnDefinition = "varchar(255)")
     private String validation_pattern;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
     public Long getId() { return id; }

@@ -16,7 +16,7 @@ public class RoomTypesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "code", columnDefinition = "varchar(20)")
@@ -37,28 +37,28 @@ public class RoomTypesEntity {
     @Column(name = "weekend_rate", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal weekend_rate;
 
-    @Column(name = "max_occupancy")
+    @Column(name = "max_occupancy", columnDefinition = "integer DEFAULT 2")
     private Integer max_occupancy;
 
     @Column(name = "bed_type", columnDefinition = "varchar(50)")
     private String bed_type;
 
-    @Column(name = "bed_count")
+    @Column(name = "bed_count", columnDefinition = "integer DEFAULT 1")
     private Integer bed_count;
 
-    @Column(name = "allows_extra_bed")
+    @Column(name = "allows_extra_bed", columnDefinition = "boolean DEFAULT false")
     private Boolean allows_extra_bed;
 
-    @Column(name = "max_extra_beds")
+    @Column(name = "max_extra_beds", columnDefinition = "integer DEFAULT 0")
     private Integer max_extra_beds;
 
-    @Column(name = "extra_bed_charge", columnDefinition = "numeric(10,2)")
+    @Column(name = "extra_bed_charge", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal extra_bed_charge;
 
-    @Column(name = "keycard_deposit_amount", columnDefinition = "numeric(10,2)")
+    @Column(name = "keycard_deposit_amount", columnDefinition = "numeric(10,2) DEFAULT 0")
     private java.math.BigDecimal keycard_deposit_amount;
 
-    @Column(name = "service_charge_percentage", columnDefinition = "numeric(5,2)")
+    @Column(name = "service_charge_percentage", columnDefinition = "numeric(5,2) DEFAULT 0")
     private java.math.BigDecimal service_charge_percentage;
 
     @Column(name = "size_sqm", columnDefinition = "numeric(6,2)")
@@ -70,22 +70,22 @@ public class RoomTypesEntity {
     @Column(name = "floor_range", columnDefinition = "varchar(20)")
     private String floor_range;
 
-    @Column(name = "images")
+    @Column(name = "images", columnDefinition = "jsonb")
     private String images;
 
-    @Column(name = "features")
+    @Column(name = "features", columnDefinition = "jsonb")
     private String features;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "sort_order")
+    @Column(name = "sort_order", columnDefinition = "integer DEFAULT 0")
     private Integer sort_order;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

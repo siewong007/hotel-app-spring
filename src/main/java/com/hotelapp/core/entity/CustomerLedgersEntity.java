@@ -16,7 +16,7 @@ public class CustomerLedgersEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "company_name", columnDefinition = "varchar(255)")
@@ -64,7 +64,7 @@ public class CustomerLedgersEntity {
     @Column(name = "status", columnDefinition = "varchar(50)")
     private String status;
 
-    @Column(name = "paid_amount", columnDefinition = "numeric(10,2)")
+    @Column(name = "paid_amount", columnDefinition = "numeric(10,2) DEFAULT 0.00")
     private java.math.BigDecimal paid_amount;
 
     @Column(name = "payment_method", columnDefinition = "varchar(50)")
@@ -73,22 +73,22 @@ public class CustomerLedgersEntity {
     @Column(name = "payment_reference", columnDefinition = "varchar(255)")
     private String payment_reference;
 
-    @Column(name = "payment_date")
+    @Column(name = "payment_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime payment_date;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "invoice_number", columnDefinition = "varchar(100)")
     private String invoice_number;
 
-    @Column(name = "invoice_date")
+    @Column(name = "invoice_date", columnDefinition = "date")
     private java.time.LocalDate invoice_date;
 
-    @Column(name = "due_date")
+    @Column(name = "due_date", columnDefinition = "date")
     private java.time.LocalDate due_date;
 
     @Column(name = "notes", columnDefinition = "text")
@@ -118,64 +118,64 @@ public class CustomerLedgersEntity {
     @Column(name = "room_number", columnDefinition = "varchar(20)")
     private String room_number;
 
-    @Column(name = "posting_date")
+    @Column(name = "posting_date", columnDefinition = "date")
     private java.time.LocalDate posting_date;
 
-    @Column(name = "transaction_date")
+    @Column(name = "transaction_date", columnDefinition = "date")
     private java.time.LocalDate transaction_date;
 
     @Column(name = "reference_number", columnDefinition = "varchar(100)")
     private String reference_number;
 
-    @Column(name = "cashier_id")
+    @Column(name = "cashier_id", columnDefinition = "bigint")
     private Long cashier_id;
 
-    @Column(name = "is_reversal")
+    @Column(name = "is_reversal", columnDefinition = "boolean DEFAULT false")
     private Boolean is_reversal;
 
-    @Column(name = "original_transaction_id")
+    @Column(name = "original_transaction_id", columnDefinition = "bigint")
     private Long original_transaction_id;
 
     @Column(name = "reversal_reason", columnDefinition = "text")
     private String reversal_reason;
 
-    @Column(name = "tax_amount", columnDefinition = "numeric(10,2)")
+    @Column(name = "tax_amount", columnDefinition = "numeric(10,2) DEFAULT 0.00")
     private java.math.BigDecimal tax_amount;
 
-    @Column(name = "service_charge", columnDefinition = "numeric(10,2)")
+    @Column(name = "service_charge", columnDefinition = "numeric(10,2) DEFAULT 0.00")
     private java.math.BigDecimal service_charge;
 
     @Column(name = "net_amount", columnDefinition = "numeric(10,2)")
     private java.math.BigDecimal net_amount;
 
-    @Column(name = "is_posted")
+    @Column(name = "is_posted", columnDefinition = "boolean DEFAULT true")
     private Boolean is_posted;
 
-    @Column(name = "posted_at")
+    @Column(name = "posted_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime posted_at;
 
-    @Column(name = "void_at")
+    @Column(name = "void_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime void_at;
 
-    @Column(name = "void_by")
+    @Column(name = "void_by", columnDefinition = "bigint")
     private Long void_by;
 
     @Column(name = "void_reason", columnDefinition = "text")
     private String void_reason;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_by")
+    @Column(name = "updated_by", columnDefinition = "bigint")
     private Long updated_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "balance_due", columnDefinition = "numeric(10,2) GENERATED ALWAYS AS ((amount - paid_amount))")
+    @Column(name = "balance_due", columnDefinition = "numeric(10,2) GENERATED ALWAYS AS ((amount - paid_amount)) STORED")
     private java.math.BigDecimal balance_due;
 
     public Long getId() { return id; }

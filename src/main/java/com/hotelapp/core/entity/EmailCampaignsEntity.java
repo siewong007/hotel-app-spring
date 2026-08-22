@@ -15,7 +15,7 @@ public class EmailCampaignsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(160)")
@@ -39,46 +39,46 @@ public class EmailCampaignsEntity {
     @Column(name = "body_text", columnDefinition = "text")
     private String body_text;
 
-    @Column(name = "template_id")
+    @Column(name = "template_id", columnDefinition = "bigint")
     private Long template_id;
 
-    @Column(name = "promotion_id")
+    @Column(name = "promotion_id", columnDefinition = "bigint")
     private Long promotion_id;
 
-    @Column(name = "scheduled_at")
+    @Column(name = "scheduled_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime scheduled_at;
 
-    @Column(name = "started_at")
+    @Column(name = "started_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime started_at;
 
-    @Column(name = "completed_at")
+    @Column(name = "completed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime completed_at;
 
-    @Column(name = "cancelled_at")
+    @Column(name = "cancelled_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime cancelled_at;
 
-    @Column(name = "total_recipients")
+    @Column(name = "total_recipients", columnDefinition = "integer")
     private Integer total_recipients;
 
-    @Column(name = "sent_count")
+    @Column(name = "sent_count", columnDefinition = "integer")
     private Integer sent_count;
 
-    @Column(name = "failed_count")
+    @Column(name = "failed_count", columnDefinition = "integer")
     private Integer failed_count;
 
     @Column(name = "error", columnDefinition = "text")
     private String error;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "cancelled_by")
+    @Column(name = "cancelled_by", columnDefinition = "bigint")
     private Long cancelled_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

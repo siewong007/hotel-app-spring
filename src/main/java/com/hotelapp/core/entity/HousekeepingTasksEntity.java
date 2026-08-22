@@ -15,10 +15,10 @@ public class HousekeepingTasksEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
     @Column(name = "task_type", columnDefinition = "varchar(50)")
@@ -30,19 +30,19 @@ public class HousekeepingTasksEntity {
     @Column(name = "status", columnDefinition = "varchar(20)")
     private String status;
 
-    @Column(name = "assigned_to")
+    @Column(name = "assigned_to", columnDefinition = "bigint")
     private Long assigned_to;
 
-    @Column(name = "scheduled_date")
+    @Column(name = "scheduled_date", columnDefinition = "date")
     private java.time.LocalDate scheduled_date;
 
-    @Column(name = "task_date")
+    @Column(name = "task_date", columnDefinition = "date")
     private java.time.LocalDate task_date;
 
-    @Column(name = "started_at")
+    @Column(name = "started_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime started_at;
 
-    @Column(name = "completed_at")
+    @Column(name = "completed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime completed_at;
 
     @Column(name = "notes", columnDefinition = "text")
@@ -51,16 +51,16 @@ public class HousekeepingTasksEntity {
     @Column(name = "inspection_notes", columnDefinition = "text")
     private String inspection_notes;
 
-    @Column(name = "items_used")
+    @Column(name = "items_used", columnDefinition = "jsonb")
     private String items_used;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

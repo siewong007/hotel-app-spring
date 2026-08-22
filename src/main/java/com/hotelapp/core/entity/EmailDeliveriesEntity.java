@@ -16,16 +16,16 @@ public class EmailDeliveriesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "campaign_id")
+    @Column(name = "campaign_id", columnDefinition = "bigint")
     private Long campaign_id;
 
     @Column(name = "kind", columnDefinition = "varchar(20)")
     private String kind;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "topic", columnDefinition = "varchar(32)")
@@ -43,25 +43,25 @@ public class EmailDeliveriesEntity {
     @Column(name = "body_text", columnDefinition = "text")
     private String body_text;
 
-    @Column(name = "voucher_id")
+    @Column(name = "voucher_id", columnDefinition = "bigint")
     private Long voucher_id;
 
     @Column(name = "status", columnDefinition = "varchar(16)")
     private String status;
 
-    @Column(name = "attempts")
+    @Column(name = "attempts", columnDefinition = "integer")
     private Integer attempts;
 
-    @Column(name = "max_attempts")
+    @Column(name = "max_attempts", columnDefinition = "integer")
     private Integer max_attempts;
 
-    @Column(name = "next_attempt_at")
+    @Column(name = "next_attempt_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime next_attempt_at;
 
     @Column(name = "lease_owner", columnDefinition = "varchar(64)")
     private String lease_owner;
 
-    @Column(name = "lease_expires_at")
+    @Column(name = "lease_expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime lease_expires_at;
 
     @Column(name = "provider_message_id", columnDefinition = "varchar(255)")
@@ -73,13 +73,13 @@ public class EmailDeliveriesEntity {
     @Column(name = "last_error", columnDefinition = "text")
     private String last_error;
 
-    @Column(name = "sent_at")
+    @Column(name = "sent_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime sent_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

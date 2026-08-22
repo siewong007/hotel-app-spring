@@ -15,34 +15,34 @@ public class PointsTransactionsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "membership_id")
+    @Column(name = "membership_id", columnDefinition = "bigint")
     private Long membership_id;
 
     @Column(name = "transaction_type", columnDefinition = "varchar(20)")
     private String transaction_type;
 
-    @Column(name = "points")
+    @Column(name = "points", columnDefinition = "integer")
     private Integer points;
 
-    @Column(name = "balance_after")
+    @Column(name = "balance_after", columnDefinition = "integer")
     private Integer balance_after;
 
     @Column(name = "reference_type", columnDefinition = "varchar(50)")
     private String reference_type;
 
-    @Column(name = "reference_id")
+    @Column(name = "reference_id", columnDefinition = "bigint")
     private Long reference_id;
 
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
     public Long getId() { return id; }

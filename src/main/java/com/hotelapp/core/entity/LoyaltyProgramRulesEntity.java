@@ -15,7 +15,7 @@ public class LoyaltyProgramRulesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "points_per_currency_unit", columnDefinition = "numeric(10,4)")
@@ -24,22 +24,22 @@ public class LoyaltyProgramRulesEntity {
     @Column(name = "tier_qualification_metric", columnDefinition = "varchar(20)")
     private String tier_qualification_metric;
 
-    @Column(name = "point_expiry_months")
+    @Column(name = "point_expiry_months", columnDefinition = "integer")
     private Integer point_expiry_months;
 
-    @Column(name = "redemption_approval_required")
+    @Column(name = "redemption_approval_required", columnDefinition = "boolean")
     private Boolean redemption_approval_required;
 
-    @Column(name = "earning_enabled")
+    @Column(name = "earning_enabled", columnDefinition = "boolean")
     private Boolean earning_enabled;
 
     @Column(name = "min_eligible_amount", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal min_eligible_amount;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

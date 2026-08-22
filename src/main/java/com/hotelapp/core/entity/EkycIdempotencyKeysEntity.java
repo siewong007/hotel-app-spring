@@ -16,13 +16,13 @@ public class EkycIdempotencyKeysEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "application_id")
+    @Column(name = "application_id", columnDefinition = "bigint")
     private Long application_id;
 
-    @Column(name = "actor_id")
+    @Column(name = "actor_id", columnDefinition = "bigint")
     private Long actor_id;
 
     @Column(name = "idempotency_key", columnDefinition = "varchar(160)")
@@ -31,7 +31,7 @@ public class EkycIdempotencyKeysEntity {
     @Column(name = "action", columnDefinition = "varchar(100)")
     private String action;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

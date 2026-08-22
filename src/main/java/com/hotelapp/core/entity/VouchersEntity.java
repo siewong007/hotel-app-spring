@@ -16,13 +16,13 @@ public class VouchersEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "promotion_id")
+    @Column(name = "promotion_id", columnDefinition = "bigint")
     private Long promotion_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "code", columnDefinition = "varchar(64)")
@@ -34,31 +34,31 @@ public class VouchersEntity {
     @Column(name = "source", columnDefinition = "varchar(16)")
     private String source;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
-    @Column(name = "redeemed_at")
+    @Column(name = "redeemed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime redeemed_at;
 
-    @Column(name = "revoked_at")
+    @Column(name = "revoked_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime revoked_at;
 
-    @Column(name = "revoked_by")
+    @Column(name = "revoked_by", columnDefinition = "bigint")
     private Long revoked_by;
 
     @Column(name = "revocation_reason", columnDefinition = "text")
     private String revocation_reason;
 
-    @Column(name = "issued_by")
+    @Column(name = "issued_by", columnDefinition = "bigint")
     private Long issued_by;
 
-    @Column(name = "claimed_at")
+    @Column(name = "claimed_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime claimed_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     @Column(name = "source_reference", columnDefinition = "varchar(64)")

@@ -15,16 +15,16 @@ public class NightAuditDetailsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "audit_run_id")
+    @Column(name = "audit_run_id", columnDefinition = "bigint")
     private Long audit_run_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
     @Column(name = "record_type", columnDefinition = "varchar(50)")
@@ -33,10 +33,10 @@ public class NightAuditDetailsEntity {
     @Column(name = "action", columnDefinition = "varchar(50)")
     private String action;
 
-    @Column(name = "data")
+    @Column(name = "data", columnDefinition = "jsonb")
     private String data;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

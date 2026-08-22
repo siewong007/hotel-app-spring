@@ -15,7 +15,7 @@ public class CompaniesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "company_name", columnDefinition = "varchar(255)")
@@ -48,25 +48,25 @@ public class CompaniesEntity {
     @Column(name = "billing_country", columnDefinition = "varchar(100)")
     private String billing_country;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
     @Column(name = "credit_limit", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal credit_limit;
 
-    @Column(name = "payment_terms_days")
+    @Column(name = "payment_terms_days", columnDefinition = "integer DEFAULT 30")
     private Integer payment_terms_days;
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

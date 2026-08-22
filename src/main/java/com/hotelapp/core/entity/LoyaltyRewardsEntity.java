@@ -15,7 +15,7 @@ public class LoyaltyRewardsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "name", columnDefinition = "varchar(120)")
@@ -27,34 +27,34 @@ public class LoyaltyRewardsEntity {
     @Column(name = "category", columnDefinition = "varchar(50)")
     private String category;
 
-    @Column(name = "points_cost")
+    @Column(name = "points_cost", columnDefinition = "integer")
     private Integer points_cost;
 
-    @Column(name = "minimum_tier_id")
+    @Column(name = "minimum_tier_id", columnDefinition = "bigint")
     private Long minimum_tier_id;
 
-    @Column(name = "requires_approval")
+    @Column(name = "requires_approval", columnDefinition = "boolean")
     private Boolean requires_approval;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "inventory_count")
+    @Column(name = "inventory_count", columnDefinition = "integer")
     private Integer inventory_count;
 
-    @Column(name = "valid_from")
+    @Column(name = "valid_from", columnDefinition = "date")
     private java.time.LocalDate valid_from;
 
-    @Column(name = "valid_to")
+    @Column(name = "valid_to", columnDefinition = "date")
     private java.time.LocalDate valid_to;
 
     @Column(name = "terms_conditions", columnDefinition = "text")
     private String terms_conditions;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

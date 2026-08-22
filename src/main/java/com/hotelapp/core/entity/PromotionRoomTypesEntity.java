@@ -13,14 +13,14 @@ import jakarta.persistence.UniqueConstraint;
 public class PromotionRoomTypesEntity {
 
     @Id
-    @Column(name = "promotion_id")
+    @Column(name = "promotion_id", columnDefinition = "bigint")
     private Long promotion_id;
 
     @Id
-    @Column(name = "room_type_id")
+    @Column(name = "room_type_id", columnDefinition = "bigint")
     private Long room_type_id;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getPromotionId() { return promotion_id; }

@@ -12,10 +12,10 @@ import jakarta.persistence.UniqueConstraint;
 public class RoomStatusChangeLogEntity {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "uuid")
     private java.util.UUID id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
     @Column(name = "from_status", columnDefinition = "varchar(20)")
@@ -27,16 +27,16 @@ public class RoomStatusChangeLogEntity {
     @Column(name = "trigger_source", columnDefinition = "varchar(100)")
     private String trigger_source;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "was_blocked")
+    @Column(name = "was_blocked", columnDefinition = "boolean DEFAULT false")
     private Boolean was_blocked;
 
     @Column(name = "reason", columnDefinition = "text")
     private String reason;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public java.util.UUID getId() { return id; }

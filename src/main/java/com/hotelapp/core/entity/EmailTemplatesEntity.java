@@ -16,7 +16,7 @@ public class EmailTemplatesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
     @Column(name = "code", columnDefinition = "varchar(50)")
@@ -34,16 +34,16 @@ public class EmailTemplatesEntity {
     @Column(name = "body_text", columnDefinition = "text")
     private String body_text;
 
-    @Column(name = "variables")
+    @Column(name = "variables", columnDefinition = "jsonb")
     private String variables;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean DEFAULT true")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

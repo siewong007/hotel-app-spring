@@ -15,31 +15,31 @@ public class RoomChangesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "from_room_id")
+    @Column(name = "from_room_id", columnDefinition = "bigint")
     private Long from_room_id;
 
-    @Column(name = "to_room_id")
+    @Column(name = "to_room_id", columnDefinition = "bigint")
     private Long to_room_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "reason", columnDefinition = "text")
     private String reason;
 
-    @Column(name = "changed_by")
+    @Column(name = "changed_by", columnDefinition = "bigint")
     private Long changed_by;
 
-    @Column(name = "changed_at")
+    @Column(name = "changed_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime changed_at;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

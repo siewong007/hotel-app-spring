@@ -16,16 +16,16 @@ public class VoucherRedemptionAllocationsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "redemption_id")
+    @Column(name = "redemption_id", columnDefinition = "bigint")
     private Long redemption_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "stay_date")
+    @Column(name = "stay_date", columnDefinition = "date")
     private java.time.LocalDate stay_date;
 
     @Column(name = "gross_amount", columnDefinition = "numeric(12,2)")
@@ -37,7 +37,7 @@ public class VoucherRedemptionAllocationsEntity {
     @Column(name = "net_amount", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal net_amount;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

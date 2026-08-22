@@ -12,10 +12,10 @@ import jakarta.persistence.UniqueConstraint;
 public class HotelSchemaRevisionsEntity {
 
     @Id
-    @Column(name = "generation")
+    @Column(name = "generation", columnDefinition = "integer")
     private Integer generation;
 
-    @Column(name = "version")
+    @Column(name = "version", columnDefinition = "integer")
     private Integer version;
 
     @Column(name = "name", columnDefinition = "text")
@@ -24,7 +24,7 @@ public class HotelSchemaRevisionsEntity {
     @Column(name = "checksum", columnDefinition = "text")
     private String checksum;
 
-    @Column(name = "applied_at")
+    @Column(name = "applied_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime applied_at;
 
     @Column(name = "app_build", columnDefinition = "text")

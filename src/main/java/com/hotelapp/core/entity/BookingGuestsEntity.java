@@ -15,13 +15,13 @@ public class BookingGuestsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
     @Column(name = "first_name", columnDefinition = "varchar(100)")
@@ -33,10 +33,10 @@ public class BookingGuestsEntity {
     @Column(name = "age_group", columnDefinition = "varchar(20)")
     private String age_group;
 
-    @Column(name = "is_primary")
+    @Column(name = "is_primary", columnDefinition = "boolean DEFAULT false")
     private Boolean is_primary;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

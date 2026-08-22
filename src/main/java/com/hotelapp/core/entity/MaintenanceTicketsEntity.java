@@ -16,10 +16,10 @@ public class MaintenanceTicketsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "room_id")
+    @Column(name = "room_id", columnDefinition = "bigint")
     private Long room_id;
 
     @Column(name = "ticket_number", columnDefinition = "varchar(50)")
@@ -40,10 +40,10 @@ public class MaintenanceTicketsEntity {
     @Column(name = "status", columnDefinition = "varchar(20)")
     private String status;
 
-    @Column(name = "assigned_to")
+    @Column(name = "assigned_to", columnDefinition = "bigint")
     private Long assigned_to;
 
-    @Column(name = "reported_by")
+    @Column(name = "reported_by", columnDefinition = "bigint")
     private Long reported_by;
 
     @Column(name = "estimated_cost", columnDefinition = "numeric(10,2)")
@@ -58,25 +58,25 @@ public class MaintenanceTicketsEntity {
     @Column(name = "actual_hours", columnDefinition = "numeric(5,2)")
     private java.math.BigDecimal actual_hours;
 
-    @Column(name = "scheduled_date")
+    @Column(name = "scheduled_date", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime scheduled_date;
 
-    @Column(name = "started_at")
+    @Column(name = "started_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime started_at;
 
-    @Column(name = "resolved_at")
+    @Column(name = "resolved_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime resolved_at;
 
     @Column(name = "resolution_notes", columnDefinition = "text")
     private String resolution_notes;
 
-    @Column(name = "images")
+    @Column(name = "images", columnDefinition = "jsonb")
     private String images;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

@@ -15,13 +15,13 @@ public class GuestReviewsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "guest_id")
+    @Column(name = "guest_id", columnDefinition = "bigint")
     private Long guest_id;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
     @Column(name = "overall_rating", columnDefinition = "numeric(3,2)")
@@ -57,19 +57,19 @@ public class GuestReviewsEntity {
     @Column(name = "response", columnDefinition = "text")
     private String response;
 
-    @Column(name = "response_at")
+    @Column(name = "response_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime response_at;
 
-    @Column(name = "response_by")
+    @Column(name = "response_by", columnDefinition = "bigint")
     private Long response_by;
 
-    @Column(name = "is_published")
+    @Column(name = "is_published", columnDefinition = "boolean DEFAULT false")
     private Boolean is_published;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

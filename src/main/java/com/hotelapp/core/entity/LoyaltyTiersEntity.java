@@ -16,28 +16,28 @@ public class LoyaltyTiersEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "program_id")
+    @Column(name = "program_id", columnDefinition = "bigint")
     private Long program_id;
 
     @Column(name = "name", columnDefinition = "varchar(50)")
     private String name;
 
-    @Column(name = "min_points")
+    @Column(name = "min_points", columnDefinition = "integer")
     private Integer min_points;
 
-    @Column(name = "max_points")
+    @Column(name = "max_points", columnDefinition = "integer")
     private Integer max_points;
 
-    @Column(name = "benefits")
+    @Column(name = "benefits", columnDefinition = "jsonb")
     private String benefits;
 
-    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2)")
+    @Column(name = "discount_percentage", columnDefinition = "numeric(5,2) DEFAULT 0")
     private java.math.BigDecimal discount_percentage;
 
-    @Column(name = "points_multiplier", columnDefinition = "numeric(4,2)")
+    @Column(name = "points_multiplier", columnDefinition = "numeric(4,2) DEFAULT 1.0")
     private java.math.BigDecimal points_multiplier;
 
     @Column(name = "color", columnDefinition = "varchar(7)")
@@ -46,25 +46,25 @@ public class LoyaltyTiersEntity {
     @Column(name = "icon", columnDefinition = "varchar(100)")
     private String icon;
 
-    @Column(name = "sort_order")
+    @Column(name = "sort_order", columnDefinition = "integer DEFAULT 0")
     private Integer sort_order;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     @Column(name = "code", columnDefinition = "varchar(50)")
     private String code;
 
-    @Column(name = "min_nights")
+    @Column(name = "min_nights", columnDefinition = "integer")
     private Integer min_nights;
 
     @Column(name = "min_spend", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal min_spend;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }

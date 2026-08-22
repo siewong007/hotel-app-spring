@@ -15,13 +15,13 @@ public class EkycSensitiveRevealsEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "application_id")
+    @Column(name = "application_id", columnDefinition = "bigint")
     private Long application_id;
 
-    @Column(name = "actor_id")
+    @Column(name = "actor_id", columnDefinition = "bigint")
     private Long actor_id;
 
     @Column(name = "field_name", columnDefinition = "varchar(80)")
@@ -30,7 +30,7 @@ public class EkycSensitiveRevealsEntity {
     @Column(name = "reason", columnDefinition = "text")
     private String reason;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

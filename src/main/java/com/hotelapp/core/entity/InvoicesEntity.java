@@ -16,22 +16,22 @@ public class InvoicesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "uuid")
+    @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
     @Column(name = "invoice_number", columnDefinition = "varchar(50)")
     private String invoice_number;
 
-    @Column(name = "booking_id")
+    @Column(name = "booking_id", columnDefinition = "bigint")
     private Long booking_id;
 
-    @Column(name = "bill_to_guest_id")
+    @Column(name = "bill_to_guest_id", columnDefinition = "bigint")
     private Long bill_to_guest_id;
 
-    @Column(name = "bill_to_corporate_id")
+    @Column(name = "bill_to_corporate_id", columnDefinition = "uuid")
     private java.util.UUID bill_to_corporate_id;
 
     @Column(name = "billing_name", columnDefinition = "varchar(255)")
@@ -46,31 +46,31 @@ public class InvoicesEntity {
     @Column(name = "tax_id", columnDefinition = "varchar(100)")
     private String tax_id;
 
-    @Column(name = "issue_date")
+    @Column(name = "issue_date", columnDefinition = "date")
     private java.time.LocalDate issue_date;
 
-    @Column(name = "due_date")
+    @Column(name = "due_date", columnDefinition = "date")
     private java.time.LocalDate due_date;
 
     @Column(name = "subtotal", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal subtotal;
 
-    @Column(name = "tax_amount", columnDefinition = "numeric(12,2)")
+    @Column(name = "tax_amount", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal tax_amount;
 
-    @Column(name = "discount_amount", columnDefinition = "numeric(12,2)")
+    @Column(name = "discount_amount", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal discount_amount;
 
     @Column(name = "total_amount", columnDefinition = "numeric(12,2)")
     private java.math.BigDecimal total_amount;
 
-    @Column(name = "paid_amount", columnDefinition = "numeric(12,2)")
+    @Column(name = "paid_amount", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal paid_amount;
 
     @Column(name = "currency", columnDefinition = "varchar(3)")
     private String currency;
 
-    @Column(name = "line_items")
+    @Column(name = "line_items", columnDefinition = "jsonb")
     private String line_items;
 
     @Column(name = "status", columnDefinition = "varchar(20)")
@@ -85,13 +85,13 @@ public class InvoicesEntity {
     @Column(name = "payment_terms", columnDefinition = "text")
     private String payment_terms;
 
-    @Column(name = "room_charges", columnDefinition = "numeric(12,2)")
+    @Column(name = "room_charges", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal room_charges;
 
-    @Column(name = "service_charges", columnDefinition = "numeric(12,2)")
+    @Column(name = "service_charges", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal service_charges;
 
-    @Column(name = "additional_charges", columnDefinition = "numeric(12,2)")
+    @Column(name = "additional_charges", columnDefinition = "numeric(12,2) DEFAULT 0")
     private java.math.BigDecimal additional_charges;
 
     @Column(name = "notes", columnDefinition = "text")
@@ -100,22 +100,22 @@ public class InvoicesEntity {
     @Column(name = "terms", columnDefinition = "text")
     private String terms;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
-    @Column(name = "sent_at")
+    @Column(name = "sent_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime sent_at;
 
-    @Column(name = "paid_at")
+    @Column(name = "paid_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime paid_at;
 
-    @Column(name = "balance_due", columnDefinition = "numeric(12,2) GENERATED ALWAYS AS ((total_amount - paid_amount))")
+    @Column(name = "balance_due", columnDefinition = "numeric(12,2) GENERATED ALWAYS AS ((total_amount - paid_amount)) STORED")
     private java.math.BigDecimal balance_due;
 
     public Long getId() { return id; }

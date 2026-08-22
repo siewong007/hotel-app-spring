@@ -16,13 +16,13 @@ public class SupportActionIdempotencyKeysEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "conversation_id")
+    @Column(name = "conversation_id", columnDefinition = "bigint")
     private Long conversation_id;
 
-    @Column(name = "actor_user_id")
+    @Column(name = "actor_user_id", columnDefinition = "bigint")
     private Long actor_user_id;
 
     @Column(name = "idempotency_key", columnDefinition = "varchar(128)")
@@ -31,7 +31,7 @@ public class SupportActionIdempotencyKeysEntity {
     @Column(name = "action", columnDefinition = "varchar(64)")
     private String action;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
     public Long getId() { return id; }

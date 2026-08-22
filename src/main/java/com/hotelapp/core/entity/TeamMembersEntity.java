@@ -13,23 +13,23 @@ import jakarta.persistence.UniqueConstraint;
 public class TeamMembersEntity {
 
     @Id
-    @Column(name = "team_id")
+    @Column(name = "team_id", columnDefinition = "bigint")
     private Long team_id;
 
     @Id
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "bigint")
     private Long user_id;
 
-    @Column(name = "is_lead")
+    @Column(name = "is_lead", columnDefinition = "boolean")
     private Boolean is_lead;
 
-    @Column(name = "joined_at")
+    @Column(name = "joined_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime joined_at;
 
-    @Column(name = "added_by")
+    @Column(name = "added_by", columnDefinition = "bigint")
     private Long added_by;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", columnDefinition = "timestamptz")
     private java.time.OffsetDateTime expires_at;
 
     public Long getTeamId() { return team_id; }

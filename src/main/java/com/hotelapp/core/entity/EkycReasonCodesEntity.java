@@ -21,19 +21,19 @@ public class EkycReasonCodesEntity {
     @Column(name = "category", columnDefinition = "varchar(80)")
     private String category;
 
-    @Column(name = "requires_details")
+    @Column(name = "requires_details", columnDefinition = "boolean")
     private Boolean requires_details;
 
     @Column(name = "customer_message_template", columnDefinition = "text")
     private String customer_message_template;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", columnDefinition = "boolean")
     private Boolean is_active;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public String getCode() { return code; }

@@ -15,10 +15,10 @@ public class EkycNotesEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
-    @Column(name = "id")
+    @Column(name = "id", columnDefinition = "bigint")
     private Long id;
 
-    @Column(name = "application_id")
+    @Column(name = "application_id", columnDefinition = "bigint")
     private Long application_id;
 
     @Column(name = "note_type", columnDefinition = "varchar(40)")
@@ -27,16 +27,16 @@ public class EkycNotesEntity {
     @Column(name = "body", columnDefinition = "text")
     private String body;
 
-    @Column(name = "customer_visible")
+    @Column(name = "customer_visible", columnDefinition = "boolean")
     private Boolean customer_visible;
 
-    @Column(name = "created_by")
+    @Column(name = "created_by", columnDefinition = "bigint")
     private Long created_by;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime created_at;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "timestamptz DEFAULT CURRENT_TIMESTAMP")
     private java.time.OffsetDateTime updated_at;
 
     public Long getId() { return id; }
