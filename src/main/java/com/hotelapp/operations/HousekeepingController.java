@@ -73,7 +73,7 @@ public class HousekeepingController {
                 SELECT ht.*, r.room_number FROM housekeeping_tasks ht
                 LEFT JOIN rooms r ON r.id = ht.room_id
                 """ + where + " ORDER BY ht.created_at DESC LIMIT ? OFFSET ?",
-                Guests.concat(baseArgs, size, Page.offset(page, size)));
+                concatAll(baseArgs, size, Page.offset(page, size)));
         return Page.of(data, total == null ? 0 : total, page, size);
     }
 
@@ -214,5 +214,12 @@ public class HousekeepingController {
             }
         }
         return null;
+    }
+
+    private static Object[] concatAll(Object[] base, Object... extra) {
+        Object[] all = new Object[base.length + extra.length];
+        System.arraycopy(base, 0, all, 0, base.length);
+        System.arraycopy(extra, 0, all, base.length, extra.length);
+        return all;
     }
 }
