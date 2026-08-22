@@ -1,0 +1,216 @@
+import { api } from './client';
+import {
+  CustomerLedger,
+  CustomerLedgerCreateRequest,
+  CustomerLedgerUpdateRequest,
+  CustomerLedgerPayment,
+  CustomerLedgerPaymentRequest,
+  CompanyLedgerPaymentRequest,
+  CompanyLedgerPaymentResponse,
+  CustomerLedgerWithPayments,
+  CustomerLedgerSummary,
+  LedgerVoidRequest,
+  LedgerReversalRequest,
+} from '../types';
+import { withRetry } from '../utils/retry';
+import { getPaginationState, toPaginationSearchParams } from '../utils/pagination';
+
+export class LedgerService {
+  static async getCustomerLedgers(params?: {
+    status?: string;
+    company_name?: string;
+    expense_type?: string;
+    folio_type?: string;
+    post_type?: string;
+    department_code?: string;
+    room_number?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<CustomerLedger[]> {
+    const pageSize = 500;
+    const allPageParams = toPaginationSearchParams({ page: 1, pageSize });
+    const searchParams: Record<string, string> = {
+      page: String(allPageParams.page),
+      page_size: String(allPageParams.page_size),
+    };
+    if (params?.status) searchParams.status = params.status;
+    if (params?.company_name) searchParams.company_name = params.company_name;
+    if (params?.expense_type) searchParams.expense_type = params.expense_type;
+    if (params?.folio_type) searchParams.folio_type = params.folio_type;
+    if (params?.post_type) searchParams.post_type = params.post_type;
+    if (params?.department_code) searchParams.department_code = params.department_code;
+    if (params?.room_number) searchParams.room_number = params.room_number;
+
+    const firstPage = await withRetry(
+      () => api.get('ledgers', { searchParams }).json<any>(),
+      { maxAttempts: 3, initialDelay: 1000 }
+    );
+    const firstData: CustomerLedger[] = Array.isArray(firstPage) ? firstPage : (firstPage.data || []);
+    const total = firstPage.total || firstData.length;
+
+    if (total <= pageSize) return firstData;
+
+    // Fetch remaining pages in parallel
+    const totalPages = getPaginationState({ page: 1, pageSize, totalItems: total }).totalPages;
+    const remainingPages = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) =>
+        withRetry(
+          () => api.get('ledgers', { searchParams: { ...searchParams, page: (i + 2).toString() } }).json<any>(),
+          { maxAttempts: 3, initialDelay: 1000 }
+        )
+      )
+    );
+
+    return remainingPages.reduce(
+      (acc, res) => acc.concat(Array.isArray(res) ? res : (res.data || [])),
+      firstData
+    );
+  }
+
+  static async getLedgersPage(params: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    status?: string;
+    company_name?: string;
+    expense_type?: string;
+    folio_type?: string;
+    post_type?: string;
+    department_code?: string;
+    room_number?: string;
+    invoice_state?: 'uninvoiced' | 'invoiced';
+    balance_state?: 'outstanding' | 'clear';
+    ui_status?: 'draft' | 'ready_to_invoice' | 'invoiced' | 'partial' | 'paid' | 'overdue' | 'voided';
+    sort_by?: string;
+    sort_order?: string;
+  } = {}): Promise<{ data: CustomerLedger[]; total: number; page: number; page_size: number }> {
+    const pageParams = toPaginationSearchParams({ page: params.page, pageSize: params.page_size });
+    const searchParams: Record<string, string> = {
+      page: String(pageParams.page),
+      page_size: String(pageParams.page_size),
+    };
+    if (params.search)       searchParams.search       = params.search;
+    if (params.status)       searchParams.status       = params.status;
+    if (params.company_name) searchParams.company_name = params.company_name;
+    if (params.expense_type) searchParams.expense_type = params.expense_type;
+    if (params.folio_type) searchParams.folio_type = params.folio_type;
+    if (params.post_type) searchParams.post_type = params.post_type;
+    if (params.department_code) searchParams.department_code = params.department_code;
+    if (params.room_number) searchParams.room_number = params.room_number;
+    if (params.invoice_state) searchParams.invoice_state = params.invoice_state;
+    if (params.balance_state) searchParams.balance_state = params.balance_state;
+    if (params.ui_status) searchParams.ui_status = params.ui_status;
+    if (params.sort_by)      searchParams.sort_by      = params.sort_by;
+    if (params.sort_order)   searchParams.sort_order   = params.sort_order;
+
+    const resp = await withRetry(
+      () => api.get('ledgers', { searchParams }).json<any>(),
+      { maxAttempts: 3, initialDelay: 1000 }
+    );
+    const data: CustomerLedger[] = Array.isArray(resp) ? resp : (resp.data || []);
+    return {
+      data,
+      total: resp.total ?? data.length,
+      page: resp.page ?? 1,
+      page_size: resp.page_size ?? 50,
+    };
+  }
+
+  static async getCustomerLedger(ledgerId: number): Promise<CustomerLedger> {
+    return await api.get(`ledgers/${ledgerId}`).json<CustomerLedger>();
+  }
+
+  static async getCustomerLedgerWithPayments(ledgerId: number): Promise<CustomerLedgerWithPayments> {
+    return await api.get(`ledgers/${ledgerId}/with-payments`).json<CustomerLedgerWithPayments>();
+  }
+
+  /**
+   * Find the company city-ledger room-charge row backing a booking, if any.
+   * Company-billed bookings record payments against this ledger (not the
+   * booking `payments` table), so the booking-page invoice sources its payment
+   * history from here. Returns `null` when the booking has no posted room charge
+   * (e.g. not yet checked out, or not company-billed).
+   *
+   * There is no server-side `booking_id` filter, so we narrow by `room_number`
+   * (and `post_type=room_charge`) server-side, then match the booking and skip
+   * reversal rows client-side. The partial unique index guarantees at most one
+   * non-reversal room_charge per booking.
+   */
+  static async getRoomChargeLedgerForBooking(
+    bookingId: number,
+    roomNumber?: string,
+  ): Promise<CustomerLedger | null> {
+    const ledgers = await this.getCustomerLedgers({
+      post_type: 'room_charge',
+      ...(roomNumber ? { room_number: roomNumber } : {}),
+    });
+    return (
+      ledgers.find(
+        (l) => Number(l.booking_id) === Number(bookingId) && !l.is_reversal,
+      ) || null
+    );
+  }
+
+  static async createCustomerLedger(data: CustomerLedgerCreateRequest): Promise<CustomerLedger> {
+    return await api.post('ledgers', { json: data }).json<CustomerLedger>();
+  }
+
+  static async updateCustomerLedger(ledgerId: number, data: CustomerLedgerUpdateRequest): Promise<CustomerLedger> {
+    return await api.patch(`ledgers/${ledgerId}`, { json: data }).json<CustomerLedger>();
+  }
+
+  static async deleteCustomerLedger(ledgerId: number): Promise<{ message: string; ledger_id: number }> {
+    return await api.delete(`ledgers/${ledgerId}`).json();
+  }
+
+  static async getCustomerLedgerSummary(): Promise<CustomerLedgerSummary> {
+    return await api.get('ledgers/summary').json<CustomerLedgerSummary>();
+  }
+
+  static async getLedgerPayments(ledgerId: number): Promise<CustomerLedgerPayment[]> {
+    return await api.get(`ledgers/${ledgerId}/payments`).json<CustomerLedgerPayment[]>();
+  }
+
+  static async createLedgerPayment(ledgerId: number, data: CustomerLedgerPaymentRequest): Promise<CustomerLedgerPayment> {
+    return await api.post(`ledgers/${ledgerId}/payments`, { json: data }).json<CustomerLedgerPayment>();
+  }
+
+  static async createCompanyLedgerPayment(
+    request: CompanyLedgerPaymentRequest,
+  ): Promise<CompanyLedgerPaymentResponse> {
+    return await api.post('ledgers/company-payments', { json: request }).json<CompanyLedgerPaymentResponse>();
+  }
+
+  static async updateLedgerPaymentDate(ledgerId: number, paymentId: number, paymentDate: string): Promise<CustomerLedgerPayment> {
+    return await api.patch(`ledgers/${ledgerId}/payments/${paymentId}`, { json: { payment_date: paymentDate } }).json<CustomerLedgerPayment>();
+  }
+
+  // Edit the full details of an existing ledger payment. `payment_date` is
+  // required by the backend; the other fields are optional and only applied
+  // when provided. The ledger's paid_amount/status are recomputed server-side.
+  static async updateLedgerPayment(
+    ledgerId: number,
+    paymentId: number,
+    data: {
+      payment_date: string;
+      payment_amount?: number;
+      payment_method?: string;
+      payment_reference?: string;
+      notes?: string;
+    },
+  ): Promise<CustomerLedgerPayment> {
+    return await api.patch(`ledgers/${ledgerId}/payments/${paymentId}`, { json: data }).json<CustomerLedgerPayment>();
+  }
+
+  static async deleteLedgerPayment(ledgerId: number, paymentId: number): Promise<void> {
+    await api.delete(`ledgers/${ledgerId}/payments/${paymentId}`).json();
+  }
+
+  static async voidLedger(ledgerId: number, data: LedgerVoidRequest): Promise<CustomerLedger> {
+    return await api.post(`ledgers/${ledgerId}/void`, { json: data }).json<CustomerLedger>();
+  }
+
+  static async reverseLedger(ledgerId: number, data: LedgerReversalRequest): Promise<CustomerLedger> {
+    return await api.post(`ledgers/${ledgerId}/reverse`, { json: data }).json<CustomerLedger>();
+  }
+}

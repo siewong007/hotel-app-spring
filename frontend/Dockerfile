@@ -1,0 +1,67 @@
+# Multi-stage Dockerfile for React Frontend
+# Stage 1: Build the application
+FROM oven/bun:1.3.14-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock ./
+
+# Install dependencies from the lockfile for reproducible builds.
+# `bun ci` fails if package.json and bun.lock are out of sync,
+# which surfaces dependency drift at build time instead of silently resolving it.
+RUN bun ci
+
+# Copy source code
+COPY . .
+
+# Build arguments for environment variables
+# Empty by default: the browser uses its current origin and the public reverse
+# proxy forwards API paths. Set this only for an intentional API-origin override.
+ARG VITE_API_URL
+ARG VITE_ENVIRONMENT=production
+
+# Set environment variables for build
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_ENVIRONMENT=$VITE_ENVIRONMENT
+ENV NODE_ENV=production
+
+# Build the application
+RUN bun run build
+
+# Stage 2: Serve with Nginx
+# Version-pinned (was floating nginx:alpine) so two deploys of the
+# same commit cannot get different web servers.
+FROM nginx:1.28-alpine
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built files from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Create non-root user for nginx
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
+    chown -R appuser:appuser /usr/share/nginx/html && \
+    chown -R appuser:appuser /var/cache/nginx && \
+    chown -R appuser:appuser /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R appuser:appuser /var/run/nginx.pid
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:80/ || exit 1
+
+# Switch to non-root user
+USER appuser
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

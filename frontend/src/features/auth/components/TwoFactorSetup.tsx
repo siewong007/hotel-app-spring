@@ -1,0 +1,461 @@
+import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  TextField,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Chip,
+  Paper,
+  IconButton,
+  Divider,
+} from '@mui/material';
+import {
+  Security as SecurityIcon,
+  QrCode as QrCodeIcon,
+  Refresh as RefreshIcon,
+  ContentCopy as CopyIcon,
+} from '@mui/icons-material';
+import { ApiNotificationSeverity, emitApiNotification } from '../../../utils/apiNotifications';
+import {
+  useTwoFactorStatus,
+  useSetupTwoFactor,
+  useEnableTwoFactor,
+  useDisableTwoFactor,
+  useRegenerateBackupCodes,
+} from '../hooks/useTwoFactorQueries';
+
+interface TwoFactorSetupProps {
+  onSetupComplete?: () => void;
+}
+
+const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onSetupComplete }) => {
+  const { data: twoFactorStatus } = useTwoFactorStatus();
+  const setupMutation = useSetupTwoFactor();
+  const enableMutation = useEnableTwoFactor();
+  const disableMutation = useDisableTwoFactor();
+  const regenerateMutation = useRegenerateBackupCodes();
+  const [setupData, setSetupData] = useState<{
+    secret: string;
+    qr_code_url: string;
+    challenge_code: string;
+  } | null>(null);
+  // Codes minted by the enable call — the only set that actually works.
+  const [enableBackupCodes, setEnableBackupCodes] = useState<string[]>([]);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+  const [newBackupCodes, setNewBackupCodes] = useState<string[]>([]);
+  const [regenerateCode, setRegenerateCode] = useState('');
+  const loading =
+    setupMutation.isPending ||
+    enableMutation.isPending ||
+    disableMutation.isPending ||
+    regenerateMutation.isPending;
+
+  const handleSetup2FA = async () => {
+    try {
+      const data = await setupMutation.mutateAsync();
+      setSetupData(data);
+      setShowSetupDialog(true);
+    } catch (error: any) {
+      console.error('Failed to setup 2FA:', error);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    if (!verificationCode.trim()) {
+      showSnackbar('Please enter verification code', 'warning');
+      return;
+    }
+    if (!setupData) {
+      showSnackbar('Setup session expired. Restart 2FA setup.', 'warning');
+      return;
+    }
+
+    try {
+      const result = await enableMutation.mutateAsync({
+        code: verificationCode,
+        challengeCode: setupData.challenge_code,
+      });
+      setShowSetupDialog(false);
+      setVerificationCode('');
+      setSetupData(null);
+      setEnableBackupCodes(result.backup_codes);
+      showSnackbar('2FA enabled successfully', 'success');
+      onSetupComplete?.();
+    } catch (error: any) {
+      console.error('Failed to enable 2FA:', error);
+      showSnackbar(error.message || 'Failed to enable 2FA', 'error');
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!disableCode.trim()) {
+      showSnackbar('Please enter your current 2FA code', 'warning');
+      return;
+    }
+
+    try {
+      await disableMutation.mutateAsync(disableCode);
+      setShowDisableDialog(false);
+      setDisableCode('');
+      showSnackbar('2FA disabled successfully', 'success');
+      onSetupComplete?.();
+    } catch (error: any) {
+      console.error('Failed to disable 2FA:', error);
+      showSnackbar(error.message || 'Failed to disable 2FA', 'error');
+    }
+  };
+
+  const handleRegenerateCodes = async () => {
+    if (!regenerateCode.trim()) {
+      showSnackbar('Please enter your current 2FA code', 'warning');
+      return;
+    }
+
+    try {
+      const data = await regenerateMutation.mutateAsync(regenerateCode);
+      setNewBackupCodes(data.backup_codes);
+      setShowRegenerateDialog(false);
+      setRegenerateCode('');
+      showSnackbar('Backup codes regenerated successfully', 'success');
+    } catch (error: any) {
+      console.error('Failed to regenerate backup codes:', error);
+      showSnackbar(error.message || 'Failed to regenerate backup codes', 'error');
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      showSnackbar('Copied to clipboard', 'success');
+    }).catch(() => {
+      showSnackbar('Failed to copy to clipboard', 'error');
+    });
+  };
+
+  const showSnackbar = (message: string, severity: ApiNotificationSeverity) => {
+    emitApiNotification({ message, severity });
+  };
+
+  if (!twoFactorStatus) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <Typography>Loading 2FA status...</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SecurityIcon />
+                Two-Factor Authentication
+              </Typography>
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
+                Add an extra layer of security to your account
+              </Typography>
+            </Box>
+            <Chip
+              label={twoFactorStatus.enabled ? 'Enabled' : 'Disabled'}
+              color={twoFactorStatus.enabled ? 'success' : 'default'}
+              variant={twoFactorStatus.enabled ? 'filled' : 'outlined'}
+            />
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
+
+          {!twoFactorStatus.enabled ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <SecurityIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" gutterBottom sx={{
+                color: "text.secondary"
+              }}>
+                Two-factor authentication is not enabled
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mb: 3
+                }}>
+                Protect your account with Google Authenticator, Authy, or any TOTP app
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleSetup2FA}
+                disabled={loading}
+                startIcon={<QrCodeIcon />}
+              >
+                {loading ? 'Setting up...' : 'Set Up 2FA'}
+              </Button>
+            </Box>
+          ) : (
+            <Box>
+              <Alert severity="success" sx={{ mb: 3 }}>
+                <Typography variant="body2">
+                  <strong>2FA is enabled!</strong> Your account is now protected with two-factor authentication.
+                </Typography>
+              </Alert>
+
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                      Backup Codes
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        mb: 2
+                      }}>
+                      {twoFactorStatus.backup_codes_remaining} codes remaining
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<RefreshIcon />}
+                      onClick={() => setShowRegenerateDialog(true)}
+                    >
+                      Generate New Codes
+                    </Button>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                      Disable 2FA
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        mb: 2
+                      }}>
+                      Disabling 2FA will make your account less secure
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      onClick={() => setShowDisableDialog(true)}
+                    >
+                      Disable 2FA
+                    </Button>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+      {/* Setup 2FA Dialog */}
+      <Dialog open={showSetupDialog} onClose={() => setShowSetupDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Set Up Two-Factor Authentication</DialogTitle>
+        <DialogContent>
+          {setupData && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                1. Install Google Authenticator, Authy, or any TOTP app on your phone
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                2. Scan this QR code with your authenticator app:
+              </Typography>
+
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                {/* Rendered locally: the otpauth URI contains the TOTP secret and must not be sent to a third-party QR service */}
+                <Box sx={{ border: '1px solid', borderColor: 'divider', lineHeight: 0 }}>
+                  <QRCodeSVG value={setupData.qr_code_url} size={200} marginSize={4} title="QR Code" />
+                </Box>
+              </Box>
+
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                Or manually enter this code:
+              </Typography>
+              <Paper sx={{ p: 2, bgcolor: 'grey.100', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace', flexGrow: 1 }}>
+                    {setupData.secret}
+                  </Typography>
+                  <IconButton size="small" onClick={() => copyToClipboard(setupData.secret)}>
+                    <CopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Paper>
+
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                3. Enter the 6-digit verification code from your authenticator app:
+              </Typography>
+              <TextField
+                fullWidth
+                label="Verification Code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                sx={{ mb: 1 }}
+                slotProps={{
+                  htmlInput: { maxLength: 6 }
+                }}
+              />
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
+                Your backup codes will be shown after 2FA is enabled.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSetupDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleEnable2FA}
+            variant="contained"
+            disabled={verificationCode.length !== 6 || loading}
+          >
+            Enable 2FA
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Backup Codes Dialog — shown exactly once, right after 2FA is enabled */}
+      <Dialog open={enableBackupCodes.length > 0} maxWidth="sm" fullWidth>
+        <DialogTitle>Save Your Backup Codes</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Use these codes to access your account if you lose your device. They will not be
+            shown again.
+          </Typography>
+          <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              ⚠️ Store these codes somewhere safe. Each code can only be used once.
+            </Typography>
+            <Grid container spacing={1}>
+              {enableBackupCodes.map((code, index) => (
+                <Grid key={index} size={6}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                    {code}
+                  </Typography>
+                </Grid>
+              ))}
+            </Grid>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button
+                size="small"
+                startIcon={<CopyIcon />}
+                onClick={() => copyToClipboard(enableBackupCodes.join('\n'))}
+              >
+                Copy All Codes
+              </Button>
+            </Box>
+          </Paper>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setEnableBackupCodes([])}>
+            I saved my codes
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Disable 2FA Dialog */}
+      <Dialog open={showDisableDialog} onClose={() => setShowDisableDialog(false)}>
+        <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Are you sure you want to disable 2FA? This will make your account less secure.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Enter your current 2FA code or backup code"
+            value={disableCode}
+            onChange={(e) => setDisableCode(e.target.value)}
+            sx={{ mb: 1 }}
+          />
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
+            This action cannot be undone. Make sure you have access to your authenticator app or backup codes.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDisableDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleDisable2FA}
+            variant="contained"
+            color="error"
+            disabled={!disableCode.trim() || loading}
+          >
+            Disable 2FA
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Regenerate Backup Codes Dialog */}
+      <Dialog open={showRegenerateDialog} onClose={() => setShowRegenerateDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Regenerate Backup Codes</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Generate new backup codes? Your old codes will no longer work.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Enter your current 2FA code"
+            value={regenerateCode}
+            onChange={(e) => setRegenerateCode(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+
+          {newBackupCodes.length > 0 && (
+            <Paper sx={{ p: 2, bgcolor: 'success.light', mt: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                ✅ Your new backup codes:
+              </Typography>
+              <Grid container spacing={1}>
+                {newBackupCodes.map((code, index) => (
+                  <Grid key={index} size={6}>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                      {code}
+                    </Typography>
+                  </Grid>
+                ))}
+              </Grid>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Button
+                  size="small"
+                  startIcon={<CopyIcon />}
+                  onClick={() => copyToClipboard(newBackupCodes.join('\n'))}
+                >
+                  Copy All Codes
+                </Button>
+              </Box>
+            </Paper>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRegenerateDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleRegenerateCodes}
+            variant="contained"
+            disabled={!regenerateCode.trim() || loading}
+          >
+            {newBackupCodes.length > 0 ? 'Close' : 'Generate New Codes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default TwoFactorSetup;

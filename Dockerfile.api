@@ -1,0 +1,17 @@
+# Multi-stage build for the Spring Boot API.
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY mvnw ./
+COPY .mvn .mvn
+RUN ./mvnw -q dependency:go-offline || true
+COPY src src
+COPY tools tools
+RUN python3 -c "pass" 2>/dev/null; ./mvnw -q package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+ENV JAVA_OPTS=""
+EXPOSE 3030
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

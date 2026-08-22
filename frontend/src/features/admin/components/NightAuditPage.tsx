@@ -1,0 +1,1456 @@
+import React, { useState } from 'react';
+import { errorMessage } from '../../../utils';
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  Paper,
+  Card,
+  CardContent,
+  Chip,
+  Button,
+  TextField,
+  CircularProgress,
+  Grid,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Tabs,
+  Tab,
+  Tooltip,
+  IconButton,
+  Collapse,
+} from '@mui/material';
+import {
+  PlayArrow as RunIcon,
+  Refresh as RefreshIcon,
+  Warning as WarningIcon,
+  CheckCircle as CheckIcon,
+  Hotel as HotelIcon,
+  AttachMoney as MoneyIcon,
+  EventAvailable as EventIcon,
+  MeetingRoom as RoomIcon,
+  Info as InfoIcon,
+  KeyboardArrowDown as ExpandMoreIcon,
+  KeyboardArrowUp as ExpandLessIcon,
+  AccessTime as TimeIcon,
+  Person as PersonIcon,
+  PictureAsPdf as PdfIcon,
+  TableChart as CsvIcon,
+} from '@mui/icons-material';
+import { NightAuditRun, UnpostedBooking, JournalSection, AuditDetailsResponse } from '../../../api';
+import { TabPanel, getTabA11yProps } from '../../../components/common/TabPanel';
+import { formatLocalDate } from '../../../utils/date';
+import { formatCurrency } from '../../../utils/currency';
+import { getHotelSettings } from '../../../utils/hotelSettings';
+import {
+  useNightAuditDetailsFetcher,
+  useNightAuditPreview,
+  useNightAuditRuns,
+  useRunNightAudit,
+} from '../hooks/useNightAuditQueries';
+
+// Journal Sections Display Component
+interface JournalSectionsDisplayProps {
+  sections: JournalSection[];
+}
+
+function JournalSectionsDisplay({ sections }: JournalSectionsDisplayProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = (entryType: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryType)) {
+        newSet.delete(entryType);
+      } else {
+        newSet.add(entryType);
+      }
+      return newSet;
+    });
+  };
+
+  if (!sections || sections.length === 0) {
+    return null;
+  }
+
+  // Calculate grand totals
+  const grandTotalDebit = sections.reduce((sum, s) => sum + Number(s.total_debit), 0);
+  const grandTotalCredit = sections.reduce((sum, s) => sum + Number(s.total_credit), 0);
+
+  return (
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+        Journal Entries
+      </Typography>
+      {sections.map((section) => (
+        <Paper key={section.entry_type} variant="outlined" sx={{ mb: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 1.5,
+              cursor: 'pointer',
+              bgcolor: 'grey.50',
+              '&:hover': { bgcolor: 'grey.100' },
+            }}
+            onClick={() => toggleSection(section.entry_type)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton size="small">
+                {expandedSections.has(section.entry_type) ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+              <Typography variant="subtitle2" sx={{
+                fontWeight: "bold"
+              }}>
+                {section.display_name}
+              </Typography>
+              <Chip label={`${section.entries.length} entries`} size="small" variant="outlined" />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              {Number(section.total_debit) > 0 && (
+                <Typography variant="body2" sx={{
+                  color: "error.main"
+                }}>
+                  <strong>Debit:</strong> {formatCurrency(Number(section.total_debit))}
+                </Typography>
+              )}
+              {Number(section.total_credit) > 0 && (
+                <Typography variant="body2" sx={{
+                  color: "success.main"
+                }}>
+                  <strong>Credit:</strong> {formatCurrency(Number(section.total_credit))}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          <Collapse in={expandedSections.has(section.entry_type)}>
+            <Divider />
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.100' }}>
+                    <TableCell><strong>Booking #</strong></TableCell>
+                    <TableCell><strong>Room</strong></TableCell>
+                    <TableCell><strong>Description</strong></TableCell>
+                    <TableCell align="right"><strong>Debit</strong></TableCell>
+                    <TableCell align="right"><strong>Credit</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {section.entries.map((entry, idx) => (
+                    <TableRow key={`${entry.booking_number}-${idx}`} hover>
+                      <TableCell>{entry.booking_number}</TableCell>
+                      <TableCell>{entry.room_number}</TableCell>
+                      <TableCell>{entry.description || '-'}</TableCell>
+                      <TableCell align="right">
+                        {Number(entry.debit) > 0 ? formatCurrency(Number(entry.debit)) : '-'}
+                      </TableCell>
+                      <TableCell align="right">
+                        {Number(entry.credit) > 0 ? formatCurrency(Number(entry.credit)) : '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow sx={{ bgcolor: 'grey.100' }}>
+                    <TableCell colSpan={3}><strong>Total</strong></TableCell>
+                    <TableCell align="right">
+                      <strong>{Number(section.total_debit) > 0 ? formatCurrency(Number(section.total_debit)) : '-'}</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{Number(section.total_credit) > 0 ? formatCurrency(Number(section.total_credit)) : '-'}</strong>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Collapse>
+        </Paper>
+      ))}
+      {/* Grand Total */}
+      <Paper variant="outlined" sx={{ p: 2, bgcolor: 'primary.light' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle1" sx={{
+            fontWeight: "bold"
+          }}>Grand Total</Typography>
+          <Box sx={{ display: 'flex', gap: 4 }}>
+            <Typography variant="body1">
+              <strong>Total Debit:</strong> {formatCurrency(grandTotalDebit)}
+            </Typography>
+            <Typography variant="body1">
+              <strong>Total Credit:</strong> {formatCurrency(grandTotalCredit)}
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+    </Box>
+  );
+}
+
+const NightAuditPage: React.FC = () => {
+  // State
+  const [tabValue, setTabValue] = useState(0);
+  const [auditDate, setAuditDate] = useState(() => formatLocalDate());
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Filter state for audit history
+  const [historyYear, setHistoryYear] = useState(() => new Date().getFullYear());
+  const [historyMonth, setHistoryMonth] = useState(() => new Date().getMonth() + 1);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyPageSize, setHistoryPageSize] = useState(25);
+
+  const previewQuery = useNightAuditPreview(auditDate);
+  const historyQuery = useNightAuditRuns({
+    page: historyPage + 1,
+    pageSize: historyPageSize,
+    year: historyYear,
+    month: historyMonth,
+  });
+  const runAuditMutation = useRunNightAudit();
+  const fetchAuditDetails = useNightAuditDetailsFetcher();
+  const preview = previewQuery.data ?? null;
+  const auditHistory = historyQuery.data?.data ?? [];
+  const historyTotal = historyQuery.data?.total ?? 0;
+  const loading = previewQuery.isPending || previewQuery.isFetching;
+  const historyLoading = historyQuery.isPending;
+  const running = runAuditMutation.isPending;
+  const queryError = previewQuery.error || historyQuery.error;
+  const effectiveError = error || (queryError instanceof Error ? queryError.message : null);
+
+  // Confirmation dialog
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [auditNotes, setAuditNotes] = useState('');
+
+  // Expanded rows in history
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  // Audit details for journal sections (fetched when needed)
+  const [auditDetails, setAuditDetails] = useState<Record<number, AuditDetailsResponse>>({});
+  const [detailsLoading, setDetailsLoading] = useState<Set<number>>(new Set());
+
+  const toggleRowExpansion = async (auditId: number) => {
+    const isExpanding = !expandedRows.has(auditId);
+
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(auditId)) {
+        newSet.delete(auditId);
+      } else {
+        newSet.add(auditId);
+      }
+      return newSet;
+    });
+
+    // Fetch audit details if expanding and not already loaded
+    if (isExpanding && !auditDetails[auditId] && !detailsLoading.has(auditId)) {
+      setDetailsLoading(prev => new Set(prev).add(auditId));
+      try {
+        const details = await fetchAuditDetails(auditId);
+        setAuditDetails(prev => ({ ...prev, [auditId]: details }));
+      } catch (err) {
+        console.error('Failed to fetch audit details:', err);
+      } finally {
+        setDetailsLoading(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(auditId);
+          return newSet;
+        });
+      }
+    }
+  };
+
+  // Export single audit to CSV with booking details
+  const exportAuditToCSV = async (audit: NightAuditRun) => {
+    try {
+      // Fetch full audit details including bookings
+      const details = await fetchAuditDetails(audit.id);
+      const bookings = details.posted_bookings;
+
+      // Build CSV content
+      const lines: string[] = [];
+
+      // Header section
+      lines.push('NIGHT AUDIT REPORT');
+      lines.push(`Audit Date,${new Date(audit.audit_date + 'T00:00:00').toLocaleDateString()}`);
+      lines.push(`Run At,${new Date(audit.run_at).toLocaleString()}`);
+      lines.push(`Run By,${audit.run_by_username || 'System'}`);
+      lines.push(`Status,${audit.status}`);
+      lines.push('');
+
+      // Summary statistics
+      lines.push('SUMMARY STATISTICS');
+      lines.push(`Bookings Posted,${audit.total_bookings_posted}`);
+      lines.push(`Check-ins,${audit.total_checkins}`);
+      lines.push(`Check-outs,${audit.total_checkouts}`);
+      lines.push(`Occupancy Rate,${Number(audit.occupancy_rate).toFixed(1)}%`);
+      if (audit.notes) {
+        lines.push(`Notes,"${audit.notes.replace(/"/g, '""')}"`);
+      }
+      lines.push('');
+
+      // Booking details
+      lines.push('POSTED BOOKINGS');
+      lines.push('Booking #,Guest Name,Room,Room Type,Check-in,Check-out,Nights,Status,Payment Method,Payment Status,Channel');
+
+      bookings.forEach(booking => {
+        lines.push([
+          booking.booking_number,
+          `"${booking.guest_name.replace(/"/g, '""')}"`,
+          booking.room_number,
+          booking.room_type,
+          new Date(booking.check_in_date + 'T00:00:00').toLocaleDateString(),
+          new Date(booking.check_out_date + 'T00:00:00').toLocaleDateString(),
+          booking.nights,
+          booking.status,
+          booking.payment_method || 'N/A',
+          booking.payment_status || 'N/A',
+          booking.source || 'N/A'
+        ].join(','));
+      });
+
+      lines.push('');
+      lines.push(`Total Bookings,${bookings.length}`);
+
+      // Journal Sections
+      if (details.journal_sections && details.journal_sections.length > 0) {
+        lines.push('');
+        lines.push('JOURNAL ENTRIES');
+
+        details.journal_sections.forEach(section => {
+          lines.push('');
+          lines.push(`${section.display_name.toUpperCase()}`);
+          lines.push('Booking #,Room,Description,Debit,Credit');
+
+          section.entries.forEach(entry => {
+            lines.push([
+              entry.booking_number,
+              entry.room_number,
+              `"${(entry.description || '').replace(/"/g, '""')}"`,
+              Number(entry.debit) > 0 ? Number(entry.debit).toFixed(2) : '',
+              Number(entry.credit) > 0 ? Number(entry.credit).toFixed(2) : ''
+            ].join(','));
+          });
+
+          lines.push(`Total,,, ${Number(section.total_debit) > 0 ? Number(section.total_debit).toFixed(2) : ''}, ${Number(section.total_credit) > 0 ? Number(section.total_credit).toFixed(2) : ''}`);
+        });
+
+        // Grand totals
+        const grandDebit = details.journal_sections.reduce((sum, s) => sum + Number(s.total_debit), 0);
+        const grandCredit = details.journal_sections.reduce((sum, s) => sum + Number(s.total_credit), 0);
+        lines.push('');
+        lines.push(`GRAND TOTAL,,, ${grandDebit.toFixed(2)}, ${grandCredit.toFixed(2)}`);
+      }
+
+      const csvContent = lines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `night_audit_${audit.audit_date}.csv`;
+      link.click();
+    } catch (err) {
+      console.error('Failed to export audit to CSV:', err);
+      setError('Failed to export audit. Please try again.');
+    }
+  };
+
+  // Export single audit to PDF matching the night audit report format
+  const exportAuditToPDF = async (audit: NightAuditRun) => {
+    try {
+      const details = await fetchAuditDetails(audit.id);
+      const bookings = details.posted_bookings;
+      const sections = details.journal_sections || [];
+
+      const jspdfModule = await import('jspdf');
+      // Keep the interop fallback but preserve the ambient jsPDF type on both branches,
+      // so lastAutoTable stays known.
+      const jsPDF =
+        jspdfModule.jsPDF || (jspdfModule as { default?: typeof jspdfModule.jsPDF }).default;
+      const autoTableModule = await import('jspdf-autotable');
+      const autoTable = autoTableModule.default;
+
+      // Portrait orientation to match the printed format
+      const doc = new jsPDF({ orientation: 'portrait' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 14;
+
+      // Format audit date as DD.MM.YYYY
+      const dateParts = audit.audit_date.split('-');
+      const auditDateFormatted = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`;
+
+      // Title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Night Audit', pageWidth / 2, 20, { align: 'center' });
+
+      doc.setFontSize(11);
+      doc.text(`Audit Date : ${auditDateFormatted}`, pageWidth / 2, 28, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+
+      let currentY = 36;
+
+      // Helper: render a journal section as a bordered table
+      const renderSection = (section: JournalSection) => {
+        const isRoomCharge = section.entry_type === 'room_charge';
+        const isServiceTax = section.entry_type === 'service_tax';
+
+        // Room Charges: special table with Description, Credit, Service Tax, Room, Check-in, Check-out
+        if (isRoomCharge) {
+          // Find service tax section to merge
+          const taxSection = sections.find(s => s.entry_type === 'service_tax');
+
+          // Helper to format date as DD.MM.YYYY
+          const fmtDate = (d: string) => { const p = d.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; };
+
+          // Build merged data: match room_charge entries with service_tax entries by room
+          const rows: string[][] = [];
+          for (const entry of section.entries) {
+            const taxEntry = taxSection?.entries.find(e => e.room_number === entry.room_number);
+            const booking = bookings.find(b => b.room_number === entry.room_number);
+            rows.push([
+              'Room Charge',
+              entry.room_number,
+              booking ? fmtDate(booking.check_in_date) : '',
+              booking ? fmtDate(booking.check_out_date) : '',
+              Number(entry.credit).toFixed(2),
+              taxEntry ? Number(taxEntry.credit).toFixed(2) : '',
+            ]);
+          }
+          // Totals row
+          const totalCredit = Number(section.total_credit).toFixed(2);
+          const totalTax = taxSection ? Number(taxSection.total_credit).toFixed(2) : '';
+          rows.push([
+            '',
+            '',
+            '',
+            '',
+            `Totals : ${totalCredit}`,
+            `Totals : ${totalTax}`,
+          ]);
+
+          if (currentY + rows.length * 7 + 15 > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [['Description', 'Room', 'Check-in', 'Check-out', 'Credit', 'Service Tax']],
+            body: rows,
+            styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.3 },
+            headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'italic', lineColor: [0, 0, 0], lineWidth: 0.3 },
+            columnStyles: {
+              0: { fontStyle: 'italic', cellWidth: 35 },
+              1: { fontStyle: 'bold', halign: 'center', cellWidth: 20 },
+              2: { halign: 'center', cellWidth: 28 },
+              3: { halign: 'center', cellWidth: 28 },
+              4: { halign: 'right', cellWidth: 30 },
+              5: { halign: 'right', cellWidth: 30 },
+            },
+            theme: 'grid',
+          });
+          currentY = doc.lastAutoTable.finalY + 6;
+          return;
+        }
+
+        // Skip service_tax - already merged into room_charge
+        if (isServiceTax) return;
+
+        const isCityLedger = section.entry_type === 'city_ledger';
+
+        // City Ledger: special table with Description, Debit, Credit, Net amount
+        if (isCityLedger) {
+          const fmtDate = (d: string) => { const p = d.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; };
+          const today = fmtDate(audit.audit_date);
+
+          const rows: string[][] = [];
+          for (const entry of section.entries) {
+            const debit = Number(entry.debit);
+            const credit = Number(entry.credit);
+            rows.push([
+              today,
+              entry.description || 'Guest Ledger Transfer',
+              debit > 0 ? debit.toFixed(2) : '',
+              credit > 0 ? credit.toFixed(2) : '',
+            ]);
+          }
+          const totalDebit = Number(section.total_debit);
+          const totalCredit = Number(section.total_credit);
+          const netAmount = totalDebit - totalCredit;
+          rows.push([
+            '',
+            'Totals:',
+            totalDebit > 0 ? totalDebit.toFixed(2) : '',
+            `${totalCredit > 0 ? totalCredit.toFixed(2) : ''}    Net amount:    ${netAmount.toFixed(2)}`,
+          ]);
+
+          if (currentY + rows.length * 7 + 20 > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          // Section header
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('City Ledger', margin, currentY);
+          doc.setFont('helvetica', 'normal');
+          currentY += 5;
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [['', '', '', '']],
+            body: rows,
+            showHead: false,
+            styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.3 },
+            columnStyles: {
+              0: { cellWidth: 28 },
+              1: { fontStyle: 'italic', cellWidth: 50 },
+              2: { halign: 'right', fontStyle: 'bold', cellWidth: 25 },
+              3: { halign: 'right', fontStyle: 'bold', cellWidth: 55 },
+            },
+            theme: 'grid',
+          });
+          currentY = doc.lastAutoTable.finalY + 6;
+          return;
+        }
+
+        const isCreditSideSection = [
+          'extra_bed_charge',
+          'extra_bed_tax',
+          'tourism_tax',
+          'deposit_refund',
+        ].includes(section.entry_type);
+
+        // All other sections: Description, Amount, Room/Notes
+        const displayName = section.display_name;
+        const rows: string[][] = [];
+        for (const entry of section.entries) {
+          const amount = isCreditSideSection ? Number(entry.credit) : Number(entry.debit);
+          rows.push([
+            displayName,
+            amount > 0 ? amount.toFixed(2) : '',
+            entry.room_number,
+          ]);
+        }
+        const total = isCreditSideSection ? Number(section.total_credit) : Number(section.total_debit);
+        rows.push(['', `Totals : ${total.toFixed(2)}`, '']);
+
+        if (currentY + rows.length * 7 + 15 > pageHeight - 20) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['', '', '']],
+          body: rows,
+          showHead: false,
+          styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.3 },
+          columnStyles: {
+            0: { fontStyle: 'italic', cellWidth: 50 },
+            1: { halign: 'right', fontStyle: 'bold', cellWidth: 50 },
+            2: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+          },
+          theme: 'grid',
+        });
+        currentY = doc.lastAutoTable.finalY + 6;
+      };
+
+      // Render each journal section
+      for (const section of sections) {
+        renderSection(section);
+      }
+
+      // === Page 2: General Journal + Room Sold Detail ===
+      doc.addPage();
+      currentY = 20;
+
+      // Guest Ledger title
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Guest Ledger', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      currentY += 8;
+
+      // Build General Journal summary rows from the report's debit/credit totals.
+      const journalRows: string[][] = [];
+      let journalTotalDebit = 0;
+      let journalTotalCredit = 0;
+      for (const section of sections) {
+        const debitVal = Number(section.total_debit);
+        const creditVal = Number(section.total_credit);
+        journalTotalDebit += debitVal;
+        journalTotalCredit += creditVal;
+        journalRows.push([
+          section.display_name,
+          debitVal > 0 ? debitVal.toFixed(2) : '',
+          creditVal > 0 ? creditVal.toFixed(2) : '',
+        ]);
+      }
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Account', 'Debits', 'Credits']],
+        body: journalRows,
+        foot: [['Total', journalTotalDebit.toFixed(2), journalTotalCredit.toFixed(2)]],
+        styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.3 },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.3 },
+        footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right', lineColor: [0, 0, 0], lineWidth: 0.3 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 60 },
+          1: { halign: 'right', fontStyle: 'bold', cellWidth: 40 },
+          2: { halign: 'right', fontStyle: 'bold', cellWidth: 40 },
+        },
+        theme: 'grid',
+      });
+      currentY = doc.lastAutoTable.finalY + 16;
+
+      // Room Sold Detail by Date
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Room Sold Detail by Date', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      currentY += 8;
+
+      const configuredChannels = getHotelSettings().booking_channels.filter(c => c.abbreviation);
+      // Online bookings store source='online' and bury the channel name in booking_remarks
+      // (formatted as "<Channel> - Ref: <ref>" or "<Channel> Booking" by UnifiedBookingModal).
+      // Match by checking whether any configured channel name appears in either field.
+      const findAbbreviation = (b: typeof bookings[number]): string | undefined => {
+        const haystacks = [b.source ?? '', b.booking_remarks ?? ''].map(s => s.toLowerCase());
+        for (const ch of configuredChannels) {
+          const needle = ch.name.toLowerCase();
+          if (haystacks.some(h => h.includes(needle))) return ch.abbreviation;
+        }
+        return undefined;
+      };
+      const roomSoldRows: string[][] = bookings.map(b => {
+        const abbr = findAbbreviation(b);
+        return [
+          b.room_number,
+          b.room_type_code || b.room_type || '',
+          abbr ? `${b.guest_name} (${abbr})` : b.guest_name,
+        ];
+      });
+      roomSoldRows.push([
+        'Total Room Sold',
+        bookings.length.toString(),
+        '',
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Room', 'Type', 'Guest Name']],
+        body: roomSoldRows,
+        styles: { fontSize: 9, cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.3 },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.3 },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'center', cellWidth: 35 },
+          1: { halign: 'center', cellWidth: 35 },
+          2: { fontStyle: 'italic' },
+        },
+        theme: 'grid',
+      });
+
+      // Footer on all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Generated: ${new Date().toLocaleString()} | Page ${i} of ${totalPages}`,
+          margin,
+          pageHeight - 10
+        );
+      }
+
+      doc.save(`night_audit_${audit.audit_date}.pdf`);
+    } catch (err) {
+      console.error('Failed to export audit to PDF:', err);
+      setError(`Failed to export audit: ${errorMessage(err, 'Unknown error')}`);
+    }
+  };
+
+  const fetchPreview = async () => {
+    setError(null);
+    await previewQuery.refetch();
+  };
+
+  const fetchHistory = async () => {
+    await historyQuery.refetch();
+  };
+
+  // Run night audit
+  const handleRunAudit = async (force: boolean = false) => {
+    try {
+      setError(null);
+      setConfirmDialogOpen(false);
+
+      const response = await runAuditMutation.mutateAsync({
+        audit_date: auditDate,
+        notes: auditNotes || undefined,
+        force,
+      });
+
+      setSuccess(force ? 'Night audit rerun successfully' : response.message);
+      setAuditNotes('');
+
+      // Refresh data
+      await Promise.all([fetchPreview(), fetchHistory()]);
+
+      // Auto-load journal details for the newly run audit so journal sections are immediately visible
+      const newAuditId = response.audit_run.id;
+      try {
+        const details = await fetchAuditDetails(newAuditId);
+        setAuditDetails(prev => ({ ...prev, [newAuditId]: details }));
+      } catch (detailErr) {
+        console.error('Failed to auto-load audit details:', detailErr);
+      }
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to run night audit'));
+    }
+  };
+
+  // Rerun night audit (for already completed audits)
+  const handleRerunAudit = async () => {
+    if (!window.confirm('Are you sure you want to rerun the night audit? This will reset the previous audit data for this date.')) {
+      return;
+    }
+    await handleRunAudit(true);
+  };
+
+  const getStatusChip = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Chip label="Completed" color="success" size="small" icon={<CheckIcon />} />;
+      case 'failed':
+        return <Chip label="Failed" color="error" size="small" icon={<WarningIcon />} />;
+      case 'in_progress':
+        return <Chip label="In Progress" color="warning" size="small" />;
+      default:
+        return <Chip label={status} size="small" />;
+    }
+  };
+
+  const getBookingStatusChip = (status: string) => {
+    const statusColors: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
+      checked_in: 'success',
+      checked_out: 'info',
+      reserved: 'warning',
+      confirmed: 'info',
+    };
+    return (
+      <Chip
+        label={status.replace(/_/g, ' ')}
+        color={statusColors[status] || 'default'}
+        size="small"
+        sx={{ textTransform: 'capitalize' }}
+      />
+    );
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" sx={{
+          fontWeight: "bold"
+        }}>
+          Night Audit
+        </Typography>
+        <IconButton onClick={() => { fetchPreview(); fetchHistory(); }}>
+          <RefreshIcon />
+        </IconButton>
+      </Box>
+      {/* Alerts */}
+      {effectiveError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {effectiveError}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+      {/* Tabs */}
+      <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 2 }} aria-label="Night audit tabs">
+        <Tab label="Run Audit" {...getTabA11yProps(0, 'night-audit')} />
+        <Tab label="Audit History" {...getTabA11yProps(1, 'night-audit')} />
+      </Tabs>
+      {/* Tab 1: Run Audit */}
+      <TabPanel value={tabValue} index={0} idPrefix="night-audit" contentSx={{ pt: 2 }}>
+        {/* Date Selector */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Grid container spacing={2} sx={{
+              alignItems: "center"
+            }}>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Audit Date"
+                  type="date"
+                  value={auditDate}
+                  onChange={(e) => setAuditDate(e.target.value)}
+                  fullWidth
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Button
+                  variant="outlined"
+                  onClick={fetchPreview}
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+                >
+                  Load Preview
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                {preview && !preview.already_run && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => setConfirmDialogOpen(true)}
+                    disabled={running || preview.total_unposted === 0}
+                    startIcon={running ? <CircularProgress size={16} color="inherit" /> : <RunIcon />}
+                  >
+                    Run Night Audit
+                  </Button>
+                )}
+                {preview?.already_run && (
+                  <Chip
+                    label="Audit Already Completed"
+                    color="success"
+                    icon={<CheckIcon />}
+                  />
+                )}
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : preview ? (
+          <>
+            {/* Report Preview */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold' }}>
+                Night Audit Report Preview
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mb: 3
+                }}>
+                {new Date(auditDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                })}
+              </Typography>
+
+              {preview.already_run ? (
+                // Completed Audit Report
+                ((() => {
+                  const normalizeDate = (d: string) => d.split('T')[0];
+                  const completedAudit = auditHistory.find(a => normalizeDate(a.audit_date) === normalizeDate(auditDate));
+                  if (completedAudit) {
+                    return (
+                      <>
+                        <Alert severity="success" sx={{ mb: 3 }} icon={<CheckIcon />}>
+                          Audit completed at {new Date(completedAudit.run_at).toLocaleString()} by {completedAudit.run_by_username || 'System'}
+                        </Alert>
+                        {/* Summary Row */}
+                        <Grid container spacing={2} sx={{ mb: 3 }}>
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
+                              <Typography variant="h4" sx={{
+                                fontWeight: "bold"
+                              }}>{completedAudit.total_bookings_posted}</Typography>
+                              <Typography variant="body2">Bookings Posted</Typography>
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                              <Typography variant="h4" sx={{
+                                fontWeight: "bold"
+                              }}>{completedAudit.total_checkins}</Typography>
+                              <Typography variant="body2">Check-ins</Typography>
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                              <Typography variant="h4" sx={{
+                                fontWeight: "bold"
+                              }}>{completedAudit.total_checkouts}</Typography>
+                              <Typography variant="body2">Check-outs</Typography>
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.200', borderRadius: 1 }}>
+                              <Typography variant="h4" sx={{
+                                fontWeight: "bold"
+                              }}>{Number(completedAudit.occupancy_rate).toFixed(0)}%</Typography>
+                              <Typography variant="body2">Occupancy</Typography>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                        {/* Room Status */}
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            color: "text.secondary",
+                            mb: 1
+                          }}>Room Status at Audit Time</Typography>
+                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                          <Chip label={`${completedAudit.rooms_available} Available`} color="success" variant="outlined" />
+                          <Chip label={`${completedAudit.rooms_occupied} Occupied`} color="error" variant="outlined" />
+                          <Chip label={`${completedAudit.rooms_reserved} Reserved`} color="info" variant="outlined" />
+                          <Chip label={`${completedAudit.rooms_maintenance} Maintenance`} color="warning" variant="outlined" />
+                          <Chip label={`${completedAudit.rooms_dirty} Dirty`} variant="outlined" />
+                        </Box>
+                        {/* Journal Sections for completed audit */}
+                        {detailsLoading.has(completedAudit.id) ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress size={24} />
+                            <Typography variant="body2" sx={{ ml: 1 }}>Loading journal entries...</Typography>
+                          </Box>
+                        ) : auditDetails[completedAudit.id]?.journal_sections && auditDetails[completedAudit.id].journal_sections.length > 0 ? (
+                          <JournalSectionsDisplay sections={auditDetails[completedAudit.id].journal_sections} />
+                        ) : !auditDetails[completedAudit.id] ? (
+                          <Button
+                            variant="text"
+                            size="small"
+                            onClick={async () => {
+                              setDetailsLoading(prev => new Set(prev).add(completedAudit.id));
+                              try {
+                                const details = await fetchAuditDetails(completedAudit.id);
+                                setAuditDetails(prev => ({ ...prev, [completedAudit.id]: details }));
+                              } catch (err) {
+                                console.error('Failed to fetch audit details:', err);
+                              } finally {
+                                setDetailsLoading(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(completedAudit.id);
+                                  return newSet;
+                                });
+                              }
+                            }}
+                          >
+                            Load Journal Entries
+                          </Button>
+                        ) : null}
+                        {/* Export and Rerun Buttons */}
+                        <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<PdfIcon />}
+                            onClick={() => exportAuditToPDF(completedAudit)}
+                          >
+                            Export PDF
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CsvIcon />}
+                            onClick={() => exportAuditToCSV(completedAudit)}
+                          >
+                            Export CSV
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<RefreshIcon />}
+                            onClick={handleRerunAudit}
+                            disabled={running}
+                          >
+                            {running ? 'Rerunning...' : 'Rerun Audit'}
+                          </Button>
+                        </Box>
+                      </>
+                    );
+                  }
+                  return <Alert severity="success">Night audit completed. Check History tab for details.</Alert>;
+                })())
+              ) : (
+                // Pending Audit Preview
+                (<>
+                  {/* Summary Row */}
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
+                        <Typography variant="h4" sx={{
+                          fontWeight: "bold"
+                        }}>{preview.total_unposted}</Typography>
+                        <Typography variant="body2">Bookings to Post</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                        <Typography variant="h4" sx={{
+                          fontWeight: "bold"
+                        }}>{preview.room_snapshot.occupied}</Typography>
+                        <Typography variant="body2">Occupied Rooms</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                        <Typography variant="h4" sx={{
+                          fontWeight: "bold"
+                        }}>{preview.room_snapshot.available}</Typography>
+                        <Typography variant="body2">Available Rooms</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.200', borderRadius: 1 }}>
+                        <Typography variant="h4" sx={{
+                          fontWeight: "bold"
+                        }}>
+                          {preview.room_snapshot.total > 0
+                            ? Math.round((preview.room_snapshot.occupied / preview.room_snapshot.total) * 100)
+                            : 0}%
+                        </Typography>
+                        <Typography variant="body2">Occupancy</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  {/* Bookings Table */}
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color: "text.secondary",
+                      mb: 1
+                    }}>
+                    Bookings to be Posted ({preview.unposted_bookings.length})
+                  </Typography>
+                  {preview.unposted_bookings.length > 0 ? (
+                    <>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: 'grey.100' }}>
+                              <TableCell><strong>Booking #</strong></TableCell>
+                              <TableCell><strong>Guest</strong></TableCell>
+                              <TableCell><strong>Room</strong></TableCell>
+                              <TableCell><strong>Check-in</strong></TableCell>
+                              <TableCell><strong>Check-out</strong></TableCell>
+                              <TableCell><strong>Status</strong></TableCell>
+                              <TableCell><strong>Channel</strong></TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {preview.unposted_bookings.map((booking: UnpostedBooking) => (
+                              <TableRow key={booking.booking_id} hover>
+                                <TableCell>{booking.booking_number}</TableCell>
+                                <TableCell>{booking.guest_name}</TableCell>
+                                <TableCell>{booking.room_number}</TableCell>
+                                <TableCell>{new Date(booking.check_in_date + 'T00:00:00').toLocaleDateString()}</TableCell>
+                                <TableCell>{new Date(booking.check_out_date + 'T00:00:00').toLocaleDateString()}</TableCell>
+                                <TableCell>{getBookingStatusChip(booking.status)}</TableCell>
+                                <TableCell sx={{ textTransform: 'capitalize' }}>
+                                  {booking.source?.replace(/_/g, ' ') || '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+
+                      {/* Journal Sections */}
+                      {preview.journal_sections && preview.journal_sections.length > 0 && (
+                        <JournalSectionsDisplay sections={preview.journal_sections} />
+                      )}
+                    </>
+                  ) : (
+                    <Alert severity="info">No bookings to post for this date.</Alert>
+                  )}
+                </>)
+              )}
+            </Paper>
+          </>
+        ) : null}
+      </TabPanel>
+      {/* Tab 2: Audit History */}
+      <TabPanel value={tabValue} index={1} idPrefix="night-audit" contentSx={{ pt: 2 }}>
+        {/* Year/Month Filter Controls */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+          <TextField
+            select
+            label="Year"
+            value={historyYear}
+            onChange={(e) => {
+              setHistoryYear(Number(e.target.value));
+              setHistoryPage(0);
+            }}
+            size="small"
+            sx={{ minWidth: 120 }}
+            slotProps={{
+              select: { native: true }
+            }}
+          >
+            {Array.from({ length: 6 }, (_, i) => {
+              const year = new Date().getFullYear() - i;
+              return (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              );
+            })}
+          </TextField>
+
+          <TextField
+            select
+            label="Month"
+            value={historyMonth}
+            onChange={(e) => {
+              setHistoryMonth(Number(e.target.value));
+              setHistoryPage(0);
+            }}
+            size="small"
+            sx={{ minWidth: 140 }}
+            slotProps={{
+              select: { native: true }
+            }}
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {new Date(0, i).toLocaleString('en-US', { month: 'long' })}
+              </option>
+            ))}
+          </TextField>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              ml: 'auto'
+            }}>
+            {historyTotal} audit{historyTotal === 1 ? '' : 's'} found
+          </Typography>
+        </Box>
+
+        {historyLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : auditHistory.length > 0 ? (
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ width: 48 }} />
+                  <TableCell sx={{ fontWeight: 600 }}>Audit Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Run At</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Run By</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Bookings</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Occupancy</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {auditHistory.map((audit) => {
+                  const isExpanded = expandedRows.has(audit.id);
+                  return (
+                    <React.Fragment key={audit.id}>
+                      <TableRow
+                        hover
+                        onClick={() => toggleRowExpansion(audit.id)}
+                        sx={{ cursor: 'pointer', '& > .MuiTableCell-root': { borderBottom: isExpanded ? 'none' : undefined } }}
+                      >
+                        <TableCell>
+                          <IconButton size="small">
+                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          </IconButton>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {new Date(audit.audit_date + 'T00:00:00').toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "text.secondary",
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}>
+                            <TimeIcon fontSize="small" />
+                            {new Date(audit.run_at).toLocaleString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "text.secondary",
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}>
+                            <PersonIcon fontSize="small" />
+                            {audit.run_by_username || 'System'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{getStatusChip(audit.status)}</TableCell>
+                        <TableCell align="right">{audit.total_bookings_posted}</TableCell>
+                        <TableCell align="right">{Number(audit.occupancy_rate).toFixed(0)}%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={7} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
+                          <Collapse in={isExpanded}>
+                            <Box sx={{ bgcolor: 'grey.50', p: 2 }}>
+                              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+                                Night Audit Report - {new Date(audit.audit_date + 'T00:00:00').toLocaleDateString()}
+                              </Typography>
+
+                              {/* Booking Statistics */}
+                              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                Booking Statistics
+                              </Typography>
+                              <Grid container spacing={2} sx={{ mb: 3 }}>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                  <Card variant="outlined">
+                                    <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                      <Typography variant="h4" color="primary">{audit.total_bookings_posted}</Typography>
+                                      <Typography variant="body2" sx={{
+                                        color: "text.secondary"
+                                      }}>Bookings Posted</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                  <Card variant="outlined">
+                                    <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                      <Typography variant="h4" sx={{
+                                        color: "success.main"
+                                      }}>{audit.total_checkins}</Typography>
+                                      <Typography variant="body2" sx={{
+                                        color: "text.secondary"
+                                      }}>Check-ins</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                  <Card variant="outlined">
+                                    <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                                      <Typography variant="h4" sx={{
+                                        color: "warning.main"
+                                      }}>{audit.total_checkouts}</Typography>
+                                      <Typography variant="body2" sx={{
+                                        color: "text.secondary"
+                                      }}>Check-outs</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                              </Grid>
+
+                              {/* Room Snapshot */}
+                              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                Room Snapshot at Audit Time
+                              </Typography>
+                              <Grid container spacing={2} sx={{ mb: 3 }}>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card sx={{ bgcolor: 'success.light' }}>
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5">{audit.rooms_available}</Typography>
+                                      <Typography variant="caption">Available</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card sx={{ bgcolor: 'error.light' }}>
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5">{audit.rooms_occupied}</Typography>
+                                      <Typography variant="caption">Occupied</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card sx={{ bgcolor: 'info.light' }}>
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5">{audit.rooms_reserved}</Typography>
+                                      <Typography variant="caption">Reserved</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card sx={{ bgcolor: 'warning.light' }}>
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5">{audit.rooms_maintenance}</Typography>
+                                      <Typography variant="caption">Maintenance</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card sx={{ bgcolor: 'grey.300' }}>
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5">{audit.rooms_dirty}</Typography>
+                                      <Typography variant="caption">Dirty</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                                <Grid size={{ xs: 4, sm: 2 }}>
+                                  <Card variant="outlined">
+                                    <CardContent sx={{ textAlign: 'center', py: 1 }}>
+                                      <Typography variant="h5" color="primary">{Number(audit.occupancy_rate).toFixed(1)}%</Typography>
+                                      <Typography variant="caption">Occupancy</Typography>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                              </Grid>
+
+                              {/* Notes */}
+                              {audit.notes && (
+                                <Box sx={{ mb: 2 }}>
+                                  <Typography variant="subtitle2" sx={{ mb: 0.5, color: 'text.secondary' }}>
+                                    Notes
+                                  </Typography>
+                                  <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'background.paper' }}>
+                                    <Typography variant="body2">{audit.notes}</Typography>
+                                  </Paper>
+                                </Box>
+                              )}
+
+                              {/* Journal Sections */}
+                              {detailsLoading.has(audit.id) ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                  <CircularProgress size={24} />
+                                  <Typography variant="body2" sx={{ ml: 1 }}>Loading journal entries...</Typography>
+                                </Box>
+                              ) : auditDetails[audit.id]?.journal_sections && auditDetails[audit.id].journal_sections.length > 0 ? (
+                                <JournalSectionsDisplay sections={auditDetails[audit.id].journal_sections} />
+                              ) : null}
+
+                              {/* Audit Info & Export Buttons */}
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                                <Box sx={{ display: 'flex', gap: 3, color: 'text.secondary', fontSize: '0.875rem' }}>
+                                  <Typography variant="body2">
+                                    <strong>Audit ID:</strong> #{audit.id}
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    <strong>Created:</strong> {new Date(audit.created_at).toLocaleString()}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<PdfIcon />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportAuditToPDF(audit);
+                                    }}
+                                  >
+                                    Export PDF
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<CsvIcon />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportAuditToCSV(audit);
+                                    }}
+                                  >
+                                    Export CSV
+                                  </Button>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <TablePagination
+              component="div"
+              count={historyTotal}
+              page={historyPage}
+              onPageChange={(_, newPage) => setHistoryPage(newPage)}
+              rowsPerPage={historyPageSize}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onRowsPerPageChange={(e) => {
+                setHistoryPageSize(parseInt(e.target.value, 10));
+                setHistoryPage(0);
+              }}
+              labelRowsPerPage="Audits per page"
+            />
+          </TableContainer>
+        ) : (
+          <Alert severity="info">No audit history available.</Alert>
+        )}
+      </TabPanel>
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Confirm Night Audit</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            You are about to run the night audit for <strong>{new Date(auditDate + 'T00:00:00').toLocaleDateString()}</strong>.
+          </Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action will:
+            <ul>
+              <li>Mark {preview?.total_unposted || 0} bookings as posted</li>
+              <li>Lock these bookings from further editing</li>
+              <li>Record room status snapshot for reporting</li>
+            </ul>
+            This action cannot be undone.
+          </Alert>
+          <TextField
+            label="Notes (Optional)"
+            multiline
+            rows={3}
+            value={auditNotes}
+            onChange={(e) => setAuditNotes(e.target.value)}
+            fullWidth
+            placeholder="Add any notes about this audit run..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => handleRunAudit(false)}
+            disabled={running}
+            startIcon={running ? <CircularProgress size={16} color="inherit" /> : <RunIcon />}
+          >
+            Run Audit
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default NightAuditPage;

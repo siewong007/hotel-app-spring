@@ -1,0 +1,259 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--hotel-bg, #f4f7f4);
+  color: var(--hotel-text-primary, #202124);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Public account experience — shared across sign in and registration. */
+.auth-page {
+  isolation: isolate;
+  padding: max(24px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
+}
+
+.auth-page::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, rgba(5, 24, 18, .94) 0%, rgba(11, 45, 34, .82) 44%, rgba(11, 45, 34, .22) 100%),
+    radial-gradient(circle at 82% 18%, rgba(217, 181, 114, .25), transparent 30%);
+}
+
+.auth-container { max-width: 560px !important; }
+
+.auth-card {
+  position: relative;
+  border-radius: 28px !important;
+  background: rgba(255, 253, 247, .97) !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, .28) !important;
+}
+
+/* The eyebrow text is the configured hotel name. `--auth-brand-eyebrow` is set
+   from the hotel settings by RootLayout, and pre-paint by public/guest-branding.js
+   so the fallback is not visible while the bundle loads. */
+.auth-card::before {
+  content: var(--auth-brand-eyebrow, 'Hotel');
+  display: block;
+  margin-bottom: 28px;
+  color: #315b4b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.auth-heading h1 {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -.055em !important;
+  text-transform: none !important;
+  color: #102a21 !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.auth-heading > div { border-radius: 999px; }
+.auth-choice-card { border-radius: 18px !important; border: 1px solid rgba(18, 58, 46, .12) !important; box-shadow: none !important; }
+.auth-choice-card:focus-within { outline: 3px solid rgba(32, 114, 87, .28); outline-offset: 2px; }
+
+.auth-card .MuiOutlinedInput-root { border-radius: 12px; background: rgba(255,255,255,.72); }
+.auth-card .MuiButton-root { min-height: 44px; border-radius: 12px; text-transform: none; }
+.auth-card .MuiButton-contained { box-shadow: 0 10px 24px rgba(31, 91, 69, .2); }
+.auth-card :focus-visible { outline: 3px solid rgba(32, 114, 87, .32); outline-offset: 2px; }
+
+@media (max-width: 600px) {
+  .auth-page { align-items: flex-start !important; padding-inline: 8px; }
+  .auth-card { border-radius: 22px !important; padding: 22px 20px !important; }
+  .auth-card::before { margin-bottom: 14px; }
+  .auth-heading h1 { font-size: 2.75rem !important; }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar - follows the active app theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--hotel-scrollbar-track, #e0f2f1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hotel-scrollbar-thumb, #80cbc4);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hotel-scrollbar-thumb-hover, #26a69a);
+}
+
+/* ===================================
+   GPU-Accelerated Smooth Animations
+   =================================== */
+
+/* Smooth fade animation - GPU accelerated */
+@keyframes smoothFadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Smooth slide animation - GPU accelerated */
+@keyframes smoothSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(20px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Smooth grow animation - GPU accelerated */
+@keyframes smoothGrowIn {
+  from {
+    opacity: 0;
+    transform: scale3d(0.97, 0.97, 1);
+  }
+  to {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+/* Legacy animations (kept for backward compatibility) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-20px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translate3d(30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes growIn {
+  from {
+    opacity: 0;
+    transform: scale3d(0.95, 0.95, 1);
+  }
+  to {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+/* Animation utility classes - simplified for stability */
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+  backface-visibility: hidden;
+}
+
+.slide-in {
+  animation: slideIn 0.2s ease-out forwards;
+  backface-visibility: hidden;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.2s ease-out forwards;
+  backface-visibility: hidden;
+}
+
+.grow-in {
+  animation: growIn 0.2s ease-out forwards;
+  backface-visibility: hidden;
+}
+
+/* Page transition styles - consistent timing */
+.page-transition-enter {
+  opacity: 0;
+  transform: translate3d(0, 8px, 0);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translate3d(0, -8px, 0);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+/* MUI v7 Grid spacing fix - force gap on containers */
+.MuiGrid-container {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: var(--Grid-rowSpacing, 16px) var(--Grid-columnSpacing, 16px) !important;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
