@@ -280,7 +280,7 @@ public class AuthService {
         Map<String, Object> user = resolution.user();
         if (resolution.created() && resolution.guestId() != null) {
             guestComms.recordSignupMarketingConsent(resolution.guestId(),
-                    req.marketingOptIn(), "registration",
+                    Boolean.TRUE.equals(req.marketingOptIn()), "registration",
                     com.hotelapp.consent.Consents.Document.PRIVACY_NOTICE.currentVersion(),
                     ip, userAgent);
         }
@@ -437,8 +437,8 @@ public class AuthService {
         // unsubscribe link. A refusal is recorded there explicitly rather than
         // left absent, so "asked and declined" stays distinguishable from
         // "never asked".
-        guestComms.recordSignupMarketingConsent(guestId, req.marketingOptIn(),
-                "registration",
+        guestComms.recordSignupMarketingConsent(guestId,
+                Boolean.TRUE.equals(req.marketingOptIn()), "registration",
                 com.hotelapp.consent.Consents.Document.PRIVACY_NOTICE.currentVersion(),
                 ip, userAgent);
 

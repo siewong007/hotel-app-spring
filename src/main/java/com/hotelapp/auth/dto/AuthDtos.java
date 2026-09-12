@@ -30,7 +30,7 @@ public final class AuthDtos {
     public record GoogleLoginRequest(
             @NotBlank(message = "Google credential is required") String credential,
             List<ConsentAcceptance> consents,
-            @JsonProperty("marketing_opt_in") boolean marketingOptIn) {
+            @JsonProperty("marketing_opt_in") Boolean marketingOptIn) {
     }
 
     // ---- registration -----------------------------------------------------
@@ -45,7 +45,7 @@ public final class AuthDtos {
             String phone,
             @JsonProperty("address_line1") String addressLine1,
             List<ConsentAcceptance> consents,
-            @JsonProperty("marketing_opt_in") boolean marketingOptIn) {
+            @JsonProperty("marketing_opt_in") Boolean marketingOptIn) {
     }
 
     public record EmailVerificationConfirm(String token) {

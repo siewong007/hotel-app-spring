@@ -5,6 +5,7 @@ import com.hotelapp.core.config.AppProperties;
 import com.hotelapp.core.i18n.Locales;
 import com.hotelapp.core.settings.HotelSettings;
 import java.security.SecureRandom;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -119,7 +120,7 @@ public class AccountEmails {
             sendEmailVerification(userId);
         } catch (Exception e) {
             log.error("Failed to queue verification email for user {}: {}", userId,
-                    e.getMessage());
+                    e.getMessage(), e);
         }
     }
 
@@ -143,7 +144,7 @@ public class AccountEmails {
                 WHERE id = ?
                 """,
                 AuthService.sha256Hex(token.toString()),
-                Instant.now().plus(24, ChronoUnit.HOURS),
+                Timestamp.from(Instant.now().plus(24, ChronoUnit.HOURS)),
                 userId);
         return token.toString();
     }

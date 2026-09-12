@@ -179,11 +179,16 @@ public class BookingsController {
     }
 
     @PatchMapping("/api/bookings/{id}")
-    @PutMapping("/api/bookings/{id}")
     public Map<String, Object> update(@PathVariable long id,
             @RequestBody BookingUpdate input) {
         long userId = CurrentUser.require().userId();
         return lifecycle.updateBooking(userId, id, input);
+    }
+
+    @PutMapping("/api/bookings/{id}")
+    public Map<String, Object> updateViaPut(@PathVariable long id,
+            @RequestBody BookingUpdate input) {
+        return update(id, input);
     }
 
     @DeleteMapping("/api/bookings/{id}")

@@ -345,12 +345,17 @@ class GuestsIT {
         String username = "noguest" + (System.nanoTime() % 100000);
         Resp registered = post("/api/auth/register",
                 "{\"username\":\"" + username + "\",\"email\":\"" + username
-                        + "@example.com\",\"password\":\"pass12345\"}",
+                        + "@example.com\",\"password\":\"Tr7!mXq9zL2\","
+                        + "\"first_name\":\"No\",\"last_name\":\"Guest\","
+                        + "\"phone\":\"+60123456789\","
+                        + "\"consents\":["
+                        + "{\"document\":\"terms_of_service\",\"version\":\"2026-09-09\",\"granted\":true,\"locale\":\"en\"},"
+                        + "{\"document\":\"privacy_notice\",\"version\":\"2026-09-09\",\"granted\":true,\"locale\":\"en\"}]}",
                 token);
         assertThat(registered.status()).isEqualTo(200);
         jdbc.update("UPDATE users SET is_verified = true WHERE username = ?", username);
         Resp login = post("/api/auth/login",
-                "{\"username\":\"" + username + "\",\"password\":\"pass12345\"}", null);
+                "{\"username\":\"" + username + "\",\"password\":\"Tr7!mXq9zL2\"}", null);
         assertThat(login.status()).isEqualTo(200);
         String userToken = field(login.body(), "access_token");
 

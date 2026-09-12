@@ -294,15 +294,15 @@ For each row in the stale-mappings table (top of this doc): grep the upstream ro
 ### Task 13: Frontend re-sync (verbatim)
 
 Steps:
-- [ ] `rsync -a --delete --exclude node_modules --exclude dist "$FE/" frontend/` — then **restore** `frontend/src/features/bookings/components/QuickBookingModal.tsx` (port-local file; first grep upstream `hotel-web-fe` for an equivalent — if upstream now ships one, drop the local copy and fix `features/bookings/index.ts` accordingly).
-- [ ] Top-level sweep: `guest.html`, i18n/legal/portal files, `bun.lock`, `package.json` (new fontsource deps), `vite.config.ts` (guestHtmlFallback plugin) all come along verbatim.
-- [ ] `cd frontend && bun install && bun run typecheck && bun run build` — must pass; this is the FE gate.
-- [ ] If `frontend/Dockerfile` or nginx conf exists, confirm it serves `guest.html` too (multi-page build) — mirror `deploy/` nginx changes from upstream.
-- [ ] Commit `chore(frontend): re-sync verbatim hotel-web-fe @ <upstream sha>`.
+- [x] `rsync -a --delete --exclude node_modules --exclude dist "$FE/" frontend/` — port-local `QuickBookingModal.tsx` was exported but never consumed and `InventoryRoomCard.tsx` only fed the superseded local `OnlineInventoryPage`; upstream ships no equivalents, so both were dropped rather than restored.
+- [x] Top-level sweep: `guest.html`, i18n/legal/portal files, `bun.lock`, `package.json` (new fontsource deps), `vite.config.ts` (guestHtmlFallback plugin) all came along verbatim.
+- [x] `cd frontend && bun install && bun run typecheck && bun run build` — passed; `dist/guest.html` + guest chunks emitted.
+- [x] nginx conf already routes `guest.html` deep-links (multi-page build) — no deploy changes needed.
+- [x] Committed `f1f8d4b chore(frontend): re-sync verbatim hotel-web-fe @ 870b38f8`.
 
 ### Task 14: Final parity + docs
 
-- [ ] `python3 tools/check_parity.py --strict` → `0 missing of 361` and `python3 tools/check_openapi_parity.py` → `0 missing, 0 unexpected` (infra routes whitelisted).
-- [ ] `./mvnw verify` fully green — no skipped tests.
-- [ ] Update `README.md` (361 endpoints, new feature areas, parity notes for intentionally-stubbed ceremonies) and the design doc's deviation list if anything new is stubbed.
-- [ ] Commit `docs: mirror complete to upstream @<sha> — 361 endpoints at parity`.
+- [x] `python3 tools/check_parity.py --strict` → `0 missing of 361` and `python3 tools/check_openapi_parity.py` → `0 missing, 0 spring-only`.
+- [x] `./mvnw verify` fully green — 218 unit + 20 Testcontainers ITs, 0 failures. Fixes along the way: `marketing_opt_in` boxed to `Boolean` (upstream `#[serde(default)]`), `Instant`→`Timestamp` bind in `AccountEmails` (pgjdbc), PATCH+PUT split into two methods (stacked annotations only registered PATCH), stale `GuestsIT` register body updated to the upstream contract (names, phone, consents, strong password).
+- [x] Updated `README.md` (361 endpoints, complete auth ceremonies, booking lifecycle, PayPal CSP, WS route note).
+- [x] Commit `docs: mirror complete — 361 endpoints at parity`.
