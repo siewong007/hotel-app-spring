@@ -50,4 +50,21 @@ public class HotelSettings {
         java.math.BigDecimal value = getDecimal(key, fallback);
         return value.signum() > 0 ? value : fallback;
     }
+
+    /** {@code get_positive_i32}: the stored value only when a positive integer. */
+    public int getPositiveInt(String key, int fallback) {
+        try {
+            String value = jdbc.queryForObject(
+                    "SELECT value FROM system_settings WHERE key = ?", String.class, key);
+            if (value != null) {
+                int parsed = Integer.parseInt(value.trim());
+                if (parsed > 0) {
+                    return parsed;
+                }
+            }
+        } catch (Exception ignored) {
+            // Missing row / non-numeric value falls back exactly like upstream.
+        }
+        return fallback;
+    }
 }

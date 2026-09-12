@@ -104,10 +104,11 @@ public class GuestComms {
 
     /**
      * {@code apply_preference_changes}: one batch of subscription changes plus
-     * its consent provenance, transactionally.
+     * its consent provenance. Runs inside the caller's transaction — the public
+     * entry points below carry the boundary (a self-invoked {@code @Transactional}
+     * would never fire).
      */
-    @Transactional
-    public void applyPreferenceChanges(ChangeRequest request) {
+    private void applyPreferenceChanges(ChangeRequest request) {
         for (SubscriptionUpdateInput change : request.changes()) {
             jdbc.update("""
                     INSERT INTO notification_subscriptions
@@ -155,6 +156,7 @@ public class GuestComms {
     }
 
     /** PUT /guest-portal/me/notification-preferences. */
+    @Transactional
     public PreferencesResponse updateMyPreferences(long guestId, PreferenceUpdateInput input,
             String ipAddress, String userAgent) {
         List<SubscriptionUpdateInput> changes = validateChanges(input);
@@ -170,6 +172,7 @@ public class GuestComms {
      * signup or booking form — an explicit opt-in/opt-out on every topic so a
      * refusal is distinguishable from never having been asked.
      */
+    @Transactional
     public void recordSignupMarketingConsent(long guestId, boolean optedIn, String source,
             String policyVersion, String ipAddress, String userAgent) {
         List<SubscriptionUpdateInput> changes = TOPICS.stream()

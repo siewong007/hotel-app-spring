@@ -289,23 +289,6 @@ public class FinalGapsController {
         return one("ekyc_verifications", "id", id);
     }
 
-    @GetMapping("/api/guest-portal/me/summary")
-    public Map<String, Object> portalMeSummary() {
-        long userId = CurrentUser.require().userId();
-        Long guestId = guestIdFor(userId);
-        Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("bookings", jdbc.queryForList(
-                "SELECT id, booking_number, status, check_in_date, check_out_date FROM bookings "
-                        + "WHERE guest_id = ? ORDER BY created_at DESC", guestId));
-        summary.put("transactions", jdbc.queryForList(
-                "SELECT * FROM payments WHERE booking_id IN "
-                        + "(SELECT id FROM bookings WHERE guest_id = ?)", guestId));
-        summary.put("credits", jdbc.queryForList(
-                "SELECT * FROM guest_complimentary_credits WHERE guest_id = ? AND credit_nights > 0",
-                guestId));
-        return summary;
-    }
-
     @PostMapping("/api/rooms/{id}/execute-change")
     public Map<String, Object> executeRoomChange(@PathVariable long id,
             @RequestBody Map<String, Object> body) {
