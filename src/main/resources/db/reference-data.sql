@@ -165,6 +165,7 @@ SELECT r.id, p.id FROM roles r CROSS JOIN permissions p WHERE r.name = 'manager'
     'maintenance:read', 'maintenance:write', 'maintenance:manage', 'navigation_housekeeping:read',
     'support:read', 'support:write', 'support:assign', 'support:escalate', 'support:manage',
     'navigation_support:read',
+    'audit:read',
     'payments:manage', 'ledgers:read', 'ledgers:create', 'ledgers:update', 'ledgers:void', 'ledgers:manage',
     'companies:read', 'companies:create', 'companies:update', 'companies:delete', 'companies:manage',
     'services:manage', 'reviews:manage', 'reports:read', 'reports:execute', 'analytics:read',
@@ -408,6 +409,7 @@ INSERT INTO system_settings (key, value, value_type, category, description, is_p
 ('hotel_address', '123 Main Street, City', 'string', 'general', 'Hotel address', true),
 ('hotel_phone', '+1-555-0123', 'string', 'general', 'Hotel contact phone', true),
 ('hotel_email', 'info@grandhotel.com', 'string', 'general', 'Hotel contact email', true),
+('hotel_business_number', 'SA2012724', 'string', 'general', 'Business registration (SSM) number shown in the booking terms and other legal disclosures', true),
 ('auto_checkin_requires_ekyc', 'true', 'boolean', 'frontdesk', 'Require approved guest eKYC before scheduled auto check-in', false),
 ('check_in_time', '15:00', 'string', 'general', 'Standard check-in time', true),
 ('check_out_time', '11:00', 'string', 'general', 'Standard check-out time', true),
@@ -422,8 +424,8 @@ INSERT INTO system_settings (key, value, value_type, category, description, is_p
 ('session_timeout', '3600', 'number', 'security', 'Session timeout in seconds', false),
 ('enable_2fa', 'false', 'boolean', 'security', 'Enable two-factor authentication', false),
 ('enable_email_verification', 'true', 'boolean', 'security', 'Require email verification', false),
-('totp_issuer_name', 'Hotel Management System', 'string', 'security', 'Issuer name shown in authenticator apps during TOTP setup', false),
-('passkey_relying_party_name', 'Hotel Management System', 'string', 'security', 'Display name shown by passkey authenticators during registration', false),
+('totp_issuer_name', '', 'string', 'security', 'Issuer name shown in authenticator apps during TOTP setup. Empty uses hotel_name.', false),
+('passkey_relying_party_name', '', 'string', 'security', 'Display name shown by passkey authenticators during registration. Empty uses hotel_name.', false),
 ('rate_codes', '["RACK","OVR","CORP","GOVT","WKII","PKG","GRP","AAA","PROMO"]', 'json', 'rates', 'Available rate codes', true),
 ('market_codes', '["WKII","CORP","GOVT","OTA","DIRECT","GROUP","EVENTS","LEISURE"]', 'json', 'sales', 'Market segment codes', true),
 ('booking_channels', '[{"name":"Booking.com","abbreviation":"B.C"},{"name":"Agoda","abbreviation":"A.C"},{"name":"Traveloka","abbreviation":"T.C"},{"name":"Expedia","abbreviation":"E.C"},{"name":"Hotels.com","abbreviation":"H.C"},{"name":"Airbnb","abbreviation":"AB"},{"name":"Trip.com","abbreviation":"TR"},{"name":"Direct Website","abbreviation":"DW"},{"name":"Other OTA","abbreviation":"OT"}]', 'json', 'sales', 'Online and direct booking channels available to front desk workflows', true),
@@ -446,6 +448,7 @@ INSERT INTO system_settings (key, value, value_type, category, description, is_p
 ('support_resolution_high_minutes', '120', 'number', 'support', 'Resolution SLA for high priority support conversations in minutes', false),
 ('support_resolution_urgent_minutes', '30', 'number', 'support', 'Resolution SLA for urgent priority support conversations in minutes', false),
 ('support_reopen_window_days', '7', 'number', 'support', 'Days a resolved guest support conversation can be reopened by its guest', false),
+('unpaid_hold_release_hours', '24', 'number', 'booking', 'Hours an unpaid online booking keeps its room before it is released automatically. 0 disables automatic release. Front-desk bookings are never released automatically.', false),
 ('guest_titles', '["Mr","Mrs","Ms","Miss","Dr","Prof","Rev"]', 'json', 'guests', 'Guest title options', true)
 ON CONFLICT (key) DO UPDATE SET
     value_type = EXCLUDED.value_type,
@@ -510,6 +513,26 @@ INSERT INTO system_settings (key, value, value_type, category, description, is_p
 VALUES ('guest_booking_cancellation_enabled', 'false', 'boolean', 'booking',
         'Allow guests to cancel eligible bookings in the guest portal', false)
 ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value, value_type, category, description, is_public) VALUES
+('pre_arrival_reminder_enabled', 'false', 'boolean', 'general',
+        'Send guests a pre-arrival reminder email before check-in', false),
+('pre_arrival_reminder_hours_before', '48', 'number', 'general',
+        'Hours before check-in to send the pre-arrival reminder (2-168)', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value, value_type, category, description, is_public) VALUES
+('require_two_factor_roles', '', 'string', 'security',
+        'Comma-separated role names whose members must have two-factor authentication enrolled, either an authenticator app or a passkey. Empty disables the requirement.', false),
+('require_two_factor_grace_days', '14', 'number', 'security',
+        'Days a member of a role listed in require_two_factor_roles may sign in before two-factor enrolment is enforced. 0 enforces immediately.', false)
+ON CONFLICT (key) DO NOTHING;
+
+UPDATE system_settings
+SET value = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE key IN ('totp_issuer_name', 'passkey_relying_party_name')
+  AND value = 'Hotel Management System';
 
 INSERT INTO route_access_policies (
     route_id, path, nav_label, nav_group, required_permissions, required_roles,
@@ -592,6 +615,28 @@ SELECT p.id, rt.id
 FROM promotions p
 JOIN room_types rt ON rt.code = 'DLX'
 WHERE p.slug = 'july-deluxe-20-loyalty'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO promotions (
+    slug, name, description, terms, status, promotion_kind, discount_type,
+    discount_value, currency, min_nights, min_subtotal, per_guest_limit,
+    is_public, is_cancellable, created_by, updated_by
+)
+SELECT
+    'welcome-deluxe-10', 'Welcome Deluxe 10%',
+    'A one-time welcome voucher for 10% off a Deluxe Room.',
+    'Valid for one eligible Deluxe Room booking. One voucher per guest.',
+    'published', 'voucher', 'percentage', 10.00, 'USD', 1, 0, 1,
+    false, true, u.id, u.id
+FROM users u
+WHERE u.username = 'admin'
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO promotion_room_types (promotion_id, room_type_id)
+SELECT p.id, rt.id
+FROM promotions p
+JOIN room_types rt ON rt.code = 'DLX'
+WHERE p.slug = 'welcome-deluxe-10'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO loyalty_rewards (

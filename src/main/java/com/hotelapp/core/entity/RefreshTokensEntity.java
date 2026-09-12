@@ -49,6 +49,9 @@ public class RefreshTokensEntity {
     @Column(name = "revoked_by", columnDefinition = "bigint")
     private Long revoked_by;
 
+    @Column(name = "client_timezone", columnDefinition = "text")
+    private String client_timezone;
+
     public java.util.UUID getId() { return id; }
     public void setId(java.util.UUID id) { this.id = id; }
 
@@ -84,4 +87,7 @@ public class RefreshTokensEntity {
 
     public Long getRevokedBy() { return revoked_by; }
     public void setRevokedBy(Long revoked_by) { this.revoked_by = revoked_by; }
+
+    public String getClientTimezone() { return client_timezone; }
+    public void setClientTimezone(String client_timezone) { this.client_timezone = client_timezone; }
 }

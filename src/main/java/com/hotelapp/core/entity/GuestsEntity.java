@@ -22,8 +22,8 @@ public class GuestsEntity {
     @Column(name = "uuid", columnDefinition = "uuid")
     private java.util.UUID uuid;
 
-    @Column(name = "full_name", columnDefinition = "varchar(255)")
-    private String full_name;
+    @Column(name = "nick_name", columnDefinition = "varchar(255)")
+    private String nick_name;
 
     @Column(name = "first_name", columnDefinition = "varchar(100)")
     private String first_name;
@@ -160,8 +160,8 @@ public class GuestsEntity {
     public java.util.UUID getUuid() { return uuid; }
     public void setUuid(java.util.UUID uuid) { this.uuid = uuid; }
 
-    public String getFullName() { return full_name; }
-    public void setFullName(String full_name) { this.full_name = full_name; }
+    public String getNickName() { return nick_name; }
+    public void setNickName(String nick_name) { this.nick_name = nick_name; }
 
     public String getFirstName() { return first_name; }
     public void setFirstName(String first_name) { this.first_name = first_name; }
