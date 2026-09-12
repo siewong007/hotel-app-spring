@@ -226,9 +226,11 @@ PUT  /api/admin/promotions/{id}
 Upstream: `git diff b7bce0a8..origin/master -- src/modules/promotions/` — routes/handlers/service/repository/models/validation.
 
 Steps:
-- [ ] Port admin lifecycle (draft→publish→pause→archive state machine exactly as upstream `service.rs`), voucher create/list/revoke (`VouchersEntity`, `VoucherRedemptionsEntity`, `VoucherRedemptionAllocationsEntity` already exist — verify columns vs baseline diff).
-- [ ] New `promotions:*`/`vouchers:*` permissions → reference-data.sql rows + role grants (diff upstream `seed.sql` permissions block).
-- [ ] Public `GET /api/promotions{,/{id}}` shape check against upstream models (fields may have grown).
+- [x] Port admin lifecycle (draft→publish→pause→archive state machine exactly as upstream `service.rs`), voucher create/list/revoke (`VouchersEntity`, `VoucherRedemptionsEntity`, `VoucherRedemptionAllocationsEntity` already exist — columns verified): `AdminPromotions` + `AdminPromotionsTx` (insert/update/set_status with `expected_version` optimistic guard → 409 on stale, `replace_room_type_targets`, audit events `promotion.{created,updated,published,paused,archived}` + `voucher.{issued,revoked}`, all in one tx each); `PromotionValidation` (slug/kind/discount/currency/window rules, 8–64 voucher code, `per_guest_limit == 1` enforcement, sorted-dedup room targets).
+- [x] `promotions:*`/`vouchers:*` permissions — already present in reference-data.sql (70–73) with role grants.
+- [x] Public `GET /api/promotions{,/{slug}}` — replaced the legacy staff CRUD stubs in `EngagementController` with the upstream public catalogue (no auth, published+public+in-window+under-limit, `claim_ends_at NULLS LAST, created_at DESC`); `/{slug}` normalizes via `normalize_slug`. Staff `Promotion` keeps `created_by`/`updated_by`; `PublicPromotion` drops them.
+- [x] `deny_unknown_fields` parity: new `@DenyUnknownFields` marker + `DenyUnknownFieldsCustomizer` (`JsonMapperBuilderCustomizer` registering a `DeserializationProblemHandler` that throws `UnrecognizedPropertyException` on marked DTOs only — Jackson 3 defaults FAIL_ON_UNKNOWN off, so the prior `ignoreUnknown=false` was a no-op). Applied to `ClaimPromotionInput`, `VoucherIssueInput`, `VoucherRevokeInput`.
+- [x] Tests: `PromotionsAdminContractTest` (11) mirrors upstream validation/models cases incl. mass-assignment rejection and unmarked-DTO tolerance; 166/166 suite green; parity 362/371/7-missing (remainder = support staff, auth lookup, online-inventory bulk).
 - [ ] Tests: `PromotionsVouchersIT` — lifecycle transitions incl. illegal ones (exact error bodies), voucher revoke, redemption accounting on a booking.
 - [ ] `./mvnw verify` green → commit `feat(promotions,vouchers): admin lifecycle, vouchers, public surface`.
 

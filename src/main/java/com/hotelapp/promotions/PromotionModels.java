@@ -1,6 +1,6 @@
 package com.hotelapp.promotions;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.hotelapp.core.json.DenyUnknownFields;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
@@ -15,6 +15,42 @@ import java.util.List;
 public final class PromotionModels {
 
     private PromotionModels() {
+    }
+
+    /**
+     * {@code Promotion}: the staff-facing shape — {@code PublicPromotion}
+     * plus the {@code created_by}/{@code updated_by} actor columns.
+     */
+    public record Promotion(
+            long id,
+            String slug,
+            String name,
+            String description,
+            String terms,
+            String status,
+            @JsonProperty("promotion_kind") String promotionKind,
+            @JsonProperty("discount_type") String discountType,
+            @JsonProperty("discount_value") BigDecimal discountValue,
+            @JsonProperty("max_discount_amount") BigDecimal maxDiscountAmount,
+            String currency,
+            @JsonProperty("claim_starts_at") OffsetDateTime claimStartsAt,
+            @JsonProperty("claim_ends_at") OffsetDateTime claimEndsAt,
+            @JsonProperty("stay_starts_on") LocalDate stayStartsOn,
+            @JsonProperty("stay_ends_on") LocalDate stayEndsOn,
+            @JsonProperty("min_nights") Integer minNights,
+            @JsonProperty("max_nights") Integer maxNights,
+            @JsonProperty("min_subtotal") BigDecimal minSubtotal,
+            @JsonProperty("claim_limit") Long claimLimit,
+            @JsonProperty("claimed_count") long claimedCount,
+            @JsonProperty("per_guest_limit") int perGuestLimit,
+            @JsonProperty("is_public") boolean isPublic,
+            @JsonProperty("is_cancellable") boolean isCancellable,
+            @JsonProperty("room_type_ids") List<Long> roomTypeIds,
+            long version,
+            @JsonProperty("created_by") Long createdBy,
+            @JsonProperty("updated_by") Long updatedBy,
+            @JsonProperty("created_at") OffsetDateTime createdAt,
+            @JsonProperty("updated_at") OffsetDateTime updatedAt) {
     }
 
     /**
@@ -64,6 +100,16 @@ public final class PromotionModels {
             @JsonProperty("page_size") long pageSize) {
     }
 
+    public record PromotionListResponse(
+            List<Promotion> items, long total, long page,
+            @JsonProperty("page_size") long pageSize) {
+    }
+
+    public record PublicPromotionListResponse(
+            List<PublicPromotion> items, long total, long page,
+            @JsonProperty("page_size") long pageSize) {
+    }
+
     /**
      * {@code Voucher}: the owning portal guest sees the full {@code code};
      * staff lists get {@code null} there and display {@code code_masked}.
@@ -91,8 +137,56 @@ public final class PromotionModels {
     }
 
     /** {@code ClaimPromotionInput} — {@code deny_unknown_fields} upstream. */
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @DenyUnknownFields
     public record ClaimPromotionInput(
             @JsonProperty("client_request_id") String clientRequestId) {
+    }
+
+    /**
+     * {@code PromotionInput}: required scalar fields stay boxed so a missing
+     * body field is rejected by the service instead of NPE-ing (upstream
+     * deserialization would 422 on a missing {@code String}).
+     */
+    public record PromotionInput(
+            String slug,
+            String name,
+            String description,
+            String terms,
+            @JsonProperty("promotion_kind") String promotionKind,
+            @JsonProperty("discount_type") String discountType,
+            @JsonProperty("discount_value") Double discountValue,
+            @JsonProperty("max_discount_amount") Double maxDiscountAmount,
+            String currency,
+            @JsonProperty("claim_starts_at") OffsetDateTime claimStartsAt,
+            @JsonProperty("claim_ends_at") OffsetDateTime claimEndsAt,
+            @JsonProperty("stay_starts_on") LocalDate stayStartsOn,
+            @JsonProperty("stay_ends_on") LocalDate stayEndsOn,
+            @JsonProperty("min_nights") Integer minNights,
+            @JsonProperty("max_nights") Integer maxNights,
+            @JsonProperty("min_subtotal") Double minSubtotal,
+            @JsonProperty("claim_limit") Long claimLimit,
+            @JsonProperty("per_guest_limit") Integer perGuestLimit,
+            @JsonProperty("is_public") Boolean isPublic,
+            @JsonProperty("is_cancellable") Boolean isCancellable,
+            @JsonProperty("room_type_ids") List<Long> roomTypeIds,
+            @JsonProperty("expected_version") Long expectedVersion) {
+    }
+
+    public record PromotionActionInput(
+            @JsonProperty("expected_version") Long expectedVersion) {
+    }
+
+    /** {@code VoucherIssueInput} — {@code deny_unknown_fields} upstream. */
+    @DenyUnknownFields
+    public record VoucherIssueInput(
+            @JsonProperty("promotion_id") Long promotionId,
+            @JsonProperty("guest_id") Long guestId,
+            String code,
+            @JsonProperty("expires_at") OffsetDateTime expiresAt) {
+    }
+
+    /** {@code VoucherRevokeInput} — {@code deny_unknown_fields} upstream. */
+    @DenyUnknownFields
+    public record VoucherRevokeInput(String reason) {
     }
 }

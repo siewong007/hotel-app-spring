@@ -18,7 +18,7 @@ class GuestPromotionsContractTest {
     private static PromotionRow promotion(String slug, String status, boolean isPublic,
             OffsetDateTime startsAt, OffsetDateTime endsAt, Long claimLimit, long claimed) {
         return new PromotionRow(1, slug, status, isPublic, startsAt, endsAt,
-                claimLimit, claimed);
+                claimLimit, claimed, 1);
     }
 
     // ---- mask_voucher_code (repository.rs) ------------------------------

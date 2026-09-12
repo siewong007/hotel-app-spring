@@ -246,55 +246,9 @@ public class EngagementController {
         return message("Redemption request submitted successfully");
     }
 
-    @PostMapping("/api/promotions")
-    public Map<String, Object> createPromotion(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        gate(userId, "promotions:manage");
-        String name = str(body, "name");
-        if (name == null) {
-            throw ApiError.badRequest("Promotion name is required");
-        }
-        Long id = jdbc.queryForObject("""
-                INSERT INTO promotions (slug, name, description, promotion_kind, discount_type,
-                    discount_value, currency, min_nights, is_public, is_cancellable, status,
-                    created_by)
-                VALUES (?, ?, ?, COALESCE(?, 'discount'), COALESCE(?, 'percentage'), ?,
-                        COALESCE(?, 'USD'), COALESCE(?, 1), COALESCE(?, true),
-                        COALESCE(?, true), 'draft', ?)
-                RETURNING id
-                """, Long.class, slug(name), name, str(body, "description"),
-                str(body, "promotion_kind"), str(body, "discount_type"),
-                numD(body.get("discount_value")), str(body, "currency"),
-                num(body, "min_nights"), body.get("is_public"), body.get("is_cancellable"),
-                userId);
-        audit.event(userId, "promotion_created", "promotion", id, null);
-        return one("promotions", "id", id);
-    }
-
-    @GetMapping("/api/promotions")
-    public List<Map<String, Object>> listPromotions(@RequestParam Map<String, String> q) {
-        CurrentUser.require();
-        boolean includeDrafts = q.containsKey("include_drafts")
-                && Boolean.parseBoolean(q.get("include_drafts"));
-        return jdbc.queryForList("SELECT * FROM promotions " + (includeDrafts ? ""
-                : "WHERE status <> 'draft' ") + "ORDER BY created_at DESC");
-    }
-
-    @GetMapping("/api/promotions/{id}")
-    public Map<String, Object> getPromotion(@PathVariable long id) {
-        CurrentUser.require();
-        return one("promotions", "id", id);
-    }
-
-    @DeleteMapping("/api/promotions/{id}")
-    public Map<String, Object> deletePromotion(@PathVariable long id) {
-        long userId = CurrentUser.require().userId();
-        gate(userId, "promotions:manage");
-        one("promotions", "id", id);
-        jdbc.update("DELETE FROM promotions WHERE id = ?", id);
-        audit.event(userId, "promotion_deleted", "promotion", id, null);
-        return message("Promotion deleted successfully");
-    }
+    // Promotions: the legacy /api/promotions CRUD stubs were replaced by the
+    // upstream modules/promotions surface — public catalogue plus
+    // /api/admin/promotions* and /api/admin/vouchers* in PromotionsController.
 
     @GetMapping("/api/communications/templates")
     public List<Map<String, Object>> templates() {
@@ -366,14 +320,6 @@ public class EngagementController {
             return new BigDecimal(s.trim());
         }
         return null;
-    }
-
-    private BigDecimal numD(Object value) {
-        return dec(value);
-    }
-
-    private String slug(String name) {
-        return name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
     }
 
     private Map<String, Object> one(String table, String pk, Long id) {

@@ -154,7 +154,7 @@ public class GuestPromotions {
     public record PromotionRow(
             long id, String slug, String status, boolean isPublic,
             OffsetDateTime claimStartsAt, OffsetDateTime claimEndsAt,
-            Long claimLimit, long claimedCount) {
+            Long claimLimit, long claimedCount, long version) {
     }
 
     private PromotionRow promotionRow(Map<String, Object> row) {
@@ -166,7 +166,8 @@ public class GuestPromotions {
                 (OffsetDateTime) row.get("claim_starts_at"),
                 (OffsetDateTime) row.get("claim_ends_at"),
                 row.get("claim_limit") instanceof Number n ? n.longValue() : null,
-                row.get("claimed_count") instanceof Number n ? n.longValue() : 0);
+                row.get("claimed_count") instanceof Number n ? n.longValue() : 0,
+                row.get("version") instanceof Number n ? n.longValue() : 1);
     }
 
     /** {@code find_by_id_tx} — read inside the caller's transaction. */
@@ -249,6 +250,35 @@ public class GuestPromotions {
                 WHERE id = ? AND status = 'published'
                   AND (claim_limit IS NULL OR claimed_count < claim_limit)
                 """, promotionId) == 1;
+    }
+
+    // ------------------------------------------------------------------
+    // Service: public catalogue
+    // ------------------------------------------------------------------
+
+    /** {@code list_public_promotions}. */
+    public PromotionModels.PublicPromotionListResponse listPublicPromotions(Long page,
+            Long pageSize) {
+        long[] p = pagination(page, pageSize);
+        PublicPage publicPage = listPublic(p[1], p[2]);
+        return new PromotionModels.PublicPromotionListResponse(
+                publicPage.items(), publicPage.total(), p[0], p[1]);
+    }
+
+    /** {@code get_public_promotion} — public lookup is by slug. */
+    public PublicPromotion getPublicPromotion(String slug) {
+        String normalized = PromotionValidation.normalizeSlug(slug);
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT %s FROM promotions p
+                WHERE p.slug = ?
+                  AND p.status = 'published' AND p.is_public = true
+                  AND (p.claim_starts_at IS NULL OR p.claim_starts_at <= CURRENT_TIMESTAMP)
+                  AND (p.claim_ends_at IS NULL OR p.claim_ends_at >= CURRENT_TIMESTAMP)
+                """.formatted(PROMOTION_COLS), normalized);
+        if (rows.isEmpty()) {
+            throw ApiError.notFound("Promotion not found");
+        }
+        return publicPromotionFromRow(rows.get(0));
     }
 
     // ------------------------------------------------------------------
