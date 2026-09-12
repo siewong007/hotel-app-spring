@@ -28,4 +28,3 @@ app:
   hotel-bank-name: ${HOTEL_BANK_NAME:Maybank}
   hotel-bank-account-name: ${HOTEL_BANK_ACCOUNT_NAME:Salim Inn}
   hotel-bank-account-number: ${HOTEL_BANK_ACCOUNT_NUMBER:511270052595}
-  hotel-bank-account-number: ${HOTEL_BANK_ACCOUNT_NUMBER:511270052595}

@@ -36,7 +36,9 @@ public class RateLimitService {
         GUEST_PORTAL_BOOKING_CREATE(10, 900),
         GUEST_PORTAL_BOOKING_CREATE_IP(30, 900),
         GUEST_PORTAL_EKYC(20, 900),
-        GUEST_PORTAL_EKYC_IP(60, 900);
+        GUEST_PORTAL_EKYC_IP(60, 900),
+        PUBLIC_BOOKING_READ_IP(120, 900),
+        PUBLIC_BOOKING_CREATE_IP(10, 900);
 
         final long maxRequests;
         final long windowSecs;

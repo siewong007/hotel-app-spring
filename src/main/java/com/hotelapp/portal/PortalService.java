@@ -587,7 +587,7 @@ public class PortalService {
     }
 
     /** {@code profile::completion_for_guest} — (first,last,phone) presence. */
-    private List<String> missingProfileFields(long guestId) {
+    public List<String> missingProfileFields(long guestId) {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT first_name, last_name, phone FROM guests WHERE id = ? "
                         + "AND deleted_at IS NULL", guestId);

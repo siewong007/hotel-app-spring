@@ -155,47 +155,6 @@ public class FinalGapsController {
         return body;
     }
 
-    @GetMapping("/api/admin/online-inventory")
-    public List<Map<String, Object>> onlineInventory(
-            @RequestParam(required = false) String stay_date) {
-        PermissionGateHelper.checkAny(CurrentUser.require().userId(),
-                List.of("rooms:update", "rooms:manage"));
-        if (stay_date != null && !stay_date.isBlank()) {
-            return jdbc.queryForList(
-                    "SELECT * FROM online_inventory_allocations WHERE stay_date = CAST(? AS date)",
-                    stay_date);
-        }
-        return jdbc.queryForList("SELECT * FROM online_inventory_allocations ORDER BY stay_date");
-    }
-
-    @PutMapping("/api/admin/online-inventory/{roomTypeId}/{stayDate}")
-    public Map<String, Object> updateOnlineInventory(@PathVariable long roomTypeId,
-            @PathVariable String stayDate, @RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        PermissionGateHelper.checkAny(userId, List.of("rooms:update", "rooms:manage"));
-        Number roomsSold = num(body, "rooms_sold");
-        Number allotment = num(body, "allotment");
-        int updated = jdbc.update("""
-                UPDATE online_inventory_allocations SET rooms_sold = COALESCE(?, rooms_sold),
-                    allotment = COALESCE(?, allotment), updated_at = NOW()
-                WHERE room_type_id = ? AND stay_date = CAST(? AS date)
-                """, roomsSold, allotment, roomTypeId, stayDate);
-        if (updated == 0) {
-            jdbc.update("""
-                    INSERT INTO online_inventory_allocations (room_type_id, stay_date, rooms_sold,
-                        allotment)
-                    VALUES (?, ?, COALESCE(?, 0), COALESCE(?, 0))
-                    """, roomTypeId, stayDate, roomsSold, allotment);
-        }
-        audit.event(userId, "online_inventory_updated", "online_inventory_allocation", null,
-                Map.of("room_type_id", roomTypeId, "stay_date", stayDate));
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT * FROM online_inventory_allocations
-                WHERE room_type_id = ? AND stay_date = CAST(? AS date)
-                """, roomTypeId, stayDate);
-        return rows.isEmpty() ? new LinkedHashMap<>() : rows.get(0);
-    }
-
     @GetMapping("/api/audit-logs/category-counts")
     public Map<String, Object> categoryCounts() {
         PermissionGateHelper.checkAny(CurrentUser.require().userId(),
