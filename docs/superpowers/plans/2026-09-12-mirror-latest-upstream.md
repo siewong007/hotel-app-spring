@@ -204,11 +204,12 @@ Steps:
 Upstream: `BE/src/modules/communications/{worker,scheduler,transport,email_layout}.rs`; booking-side triggers in `src/services/` diffs (`a105bbd7` checkout receipt outbox, `0f1ce5a2` pre-arrival reminders, `7c286689` confirmation emails on confirm/payment, `4c10aaa4` branded guest mail + spam notice, `7e082f99` transactional consent gate, `dd50d694`).
 
 Steps:
-- [ ] Port the durable outbox pattern (`email_deliveries` rows → worker → transport) if not already ported; `@Scheduled` worker + scheduler beans behind the same env switches as upstream (`SMTP_*`).
-- [ ] Wire triggers: booking confirm/payment → confirmation email; checkout → receipt email; pre-arrival window → reminder; transactional kinds bypass topic subscriptions but still honor suppression list; kind CHECK expanded in Task 2 (verify no entity-level constraint blocks the new kinds).
-- [ ] Email layout/branding per `email_layout.rs` (hotel name, spam notice).
-- [ ] Tests: `EmailTriggersIT` — confirm booking writes a `booking_confirmation` delivery row; unsubscribe token in row validates; suppression blocks campaign but not transactional.
-- [ ] `./mvnw verify` green → commit `feat(communications): outbox worker, schedulers, transactional email triggers`.
+- [x] Port the durable outbox pattern (`email_deliveries` rows → worker → transport): `EmailDeliveryWorker` (`@Scheduled`, inert without `SMTP_*`) + `EmailWorkerTx` (sent/failed/skipped marks + campaign counters in one tx per delivery) + `CommunicationsRepo` (claim/lease `FOR UPDATE SKIP LOCKED`, suppression/consent rechecks, `complete_campaign_if_done`).
+- [x] `CommunicationsScheduler` (60s poll): `tickCampaigns` (scheduled→running claim, batched audience expansion, per-guest template render + unsubscribe footer, `campaign:{id}:guest:{gid}` idempotency, recipient-total refresh, complete-when-empty), `tickBirthdays` (hotel-local once-a-day, Feb-29→Feb-28 policy, published-promotion + `birthday_voucher_*` settings gates, one tx per guest: voucher+audit+delivery), `tickPreArrivalReminders` (`pre_arrival_reminder_enabled` gate, 2–168h clamp → whole days, wizard token deep-link, `pre-arrival:{id}` key).
+- [x] `BookingEmails` (`booking_emails.rs` + payments mail composers): localized `booking_confirmed`/`payment_confirmed` via `Locales`, `online-room-assignment`/`payment-receipt-request`/`payment-rejected`/`checkout_receipt` notifications; `InvoiceNumbers.ensureInvoiceForBooking`; `AfterCommit` post-commit hooks; wired into `BookingsController.create` (now inserts `confirmed` + reserves room like upstream) + `checkout`, `BillingController` record/create/update (recompute + settle-confirm + triggers), `AccountGapsController` approve/reject/request-receipt (reason required upstream-style, recovery-link mail).
+- [x] Email layout/branding per `email_layout.rs` — `EmailLayout` already existed (identity seal, canonical host); unsubscribe footer deduplicated onto `UnsubscribeTokens.footerHtml`.
+- [x] Tests: `CommunicationsWorkerContractTest` (backoff 2^attempts capped at 60, Feb-29 pairs, leap rules, BDY codes, reminder-window clamp) + `BookingEmailsContractTest` (localized stay blocks, name fallbacks, money, CTA split) — upstream test cases mirrored; 155/155 suite green; parity 362/363/17-missing (all later tasks).
+- [x] `./mvnw verify` green → commit `feat(communications): outbox worker, schedulers, transactional email triggers`.
 
 ### Task 8: Promotions + vouchers
 

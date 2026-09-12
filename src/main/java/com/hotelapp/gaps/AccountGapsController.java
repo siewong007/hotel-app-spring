@@ -8,12 +8,14 @@ import static com.hotelapp.rates.RatesController.str;
 
 import com.hotelapp.auth.AuthService;
 import com.hotelapp.auth.RefreshCookie;
+import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
 import com.hotelapp.core.security.CurrentUser;
 import com.hotelapp.core.security.PermissionGateHelper;
 import com.hotelapp.core.security.RateLimitService;
 import com.hotelapp.core.security.RbacService;
+import com.hotelapp.email.BookingEmails;
 import com.hotelapp.guests.GuestViews;
 import com.hotelapp.promotions.WelcomeVouchers;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,14 +50,18 @@ public class AccountGapsController {
     private final RbacService rbac;
     private final TransactionTemplate tx;
 
+    private final BookingEmails bookingEmails;
+
     public AccountGapsController(JdbcTemplate jdbc, AuthService authService, AuditWriter audit,
-            RateLimitService rateLimiter, RbacService rbac, TransactionTemplate tx) {
+            RateLimitService rateLimiter, RbacService rbac, TransactionTemplate tx,
+            BookingEmails bookingEmails) {
         this.jdbc = jdbc;
         this.authService = authService;
         this.audit = audit;
         this.rateLimiter = rateLimiter;
         this.rbac = rbac;
         this.tx = tx;
+        this.bookingEmails = bookingEmails;
     }
 
     @PostMapping("/api/auth/register")
@@ -356,6 +363,7 @@ public class AccountGapsController {
     }
 
     @PutMapping("/api/admin/payments/{id}/approve")
+    @Transactional
     public Map<String, Object> approvePayment(@PathVariable long id) {
         long userId = CurrentUser.require().userId();
         gateAdmin();
@@ -370,38 +378,140 @@ public class AccountGapsController {
                 "SELECT * FROM payment_receipt_requests WHERE id = ?", id);
         BigDecimal amount = dec(receipt.get("amount"));
         Number bookingId = (Number) receipt.get("booking_id");
-        jdbc.update("""
+        Long paymentId = jdbc.queryForObject("""
                 INSERT INTO payments (booking_id, amount, payment_method, payment_date, status)
                 VALUES (?, ?, COALESCE(?, 'bank_transfer'), CURRENT_DATE, 'completed')
-                """, bookingId, amount, receipt.get("method"));
+                RETURNING id
+                """, Long.class, bookingId, amount, receipt.get("method"));
+        recomputePaymentStatus(bookingId.longValue());
+        // An approved claim confirms the booking — upstream confirm_booking_tx.
+        boolean confirmed = jdbc.update("""
+                UPDATE bookings SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND status IN ('pending','pending_payment','pending_confirmation')
+                """, bookingId.longValue()) == 1;
+        if (confirmed) {
+            jdbc.update("""
+                    INSERT INTO booking_history (booking_id, changed_field, old_value,
+                        new_value, changed_by, notes)
+                    VALUES (?, 'status', 'pending_payment', 'confirmed', ?, 'Payment approved')
+                    """, bookingId.longValue(), userId);
+        }
         audit.event(userId, "payment_approved", "payment_receipt_request", id, null);
+        AfterCommit.run(() -> bookingEmails.tryQueuePaymentConfirmationEmail(
+                bookingId.longValue(), paymentId));
         return message("Payment approved successfully");
     }
 
     @PutMapping("/api/admin/payments/{id}/reject")
-    public Map<String, Object> rejectPayment(@PathVariable long id) {
+    @Transactional
+    public Map<String, Object> rejectPayment(@PathVariable long id,
+            @RequestBody(required = false) Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
         gateAdmin();
-        int updated = jdbc.update("""
-                UPDATE payment_receipt_requests SET status = 'rejected', reviewed_by = ?,
-                    reviewed_at = NOW() WHERE id = ? AND status = 'pending'
-                """, userId, id);
-        if (updated == 0) {
+        String reason = body == null ? null : str(body, "reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw ApiError.badRequest("A rejection reason is required.");
+        }
+        Map<String, Object> receipt = receiptRequest(id);
+        if (receipt == null || !"pending".equals(str(receipt, "status"))) {
             throw ApiError.notFound("Pending payment not found");
         }
-        audit.event(userId, "payment_rejected", "payment_receipt_request", id, null);
+        jdbc.update("""
+                UPDATE payment_receipt_requests SET status = 'rejected', reviewed_by = ?,
+                    reviewed_at = NOW() WHERE id = ?
+                """, userId, id);
+        Number bookingId = (Number) receipt.get("booking_id");
+        audit.event(userId, "payment_rejected", "payment_receipt_request", id,
+                Map.of("reason", reason.trim()));
+        // Guest-facing rejection mail — best-effort, post-commit.
+        Map<String, Object> guest = guestForBooking(bookingId);
+        String reasonText = reason.trim();
+        AfterCommit.run(() -> bookingEmails.tryQueuePaymentRejectedNotification(
+                guest == null ? null : ((Number) guest.get("guest_id")).longValue(),
+                guest == null ? null : (String) guest.get("guest_name"),
+                bookingId.longValue(),
+                guest == null ? null : (String) guest.get("booking_number"),
+                id, reasonText));
         return message("Payment rejected successfully");
     }
 
     @PostMapping("/api/admin/payments/{id}/request-receipt")
-    public Map<String, Object> requestReceipt(@PathVariable long id) {
+    @Transactional
+    public Map<String, Object> requestReceipt(@PathVariable long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        long userId = CurrentUser.require().userId();
         gateAdmin();
-        jdbc.update("""
+        Map<String, Object> source = receiptRequest(id);
+        if (source == null) {
+            throw ApiError.notFound("Payment not found");
+        }
+        String note = body == null ? null : str(body, "message");
+        if (note != null && note.trim().isEmpty()) {
+            note = null;
+        }
+        Long newId = jdbc.queryForObject("""
                 INSERT INTO payment_receipt_requests (booking_id, amount, method, status)
                 SELECT booking_id, amount, method, 'requested' FROM payment_receipt_requests
                 WHERE id = ?
-                """, id);
+                RETURNING id
+                """, Long.class, id);
+        Number bookingId = (Number) source.get("booking_id");
+        Map<String, Object> auditDetails = new LinkedHashMap<>();
+        auditDetails.put("booking_id", bookingId.longValue());
+        auditDetails.put("message", note);
+        audit.event(userId, "payment_receipt_requested", "payment_receipt_request",
+                newId, auditDetails);
+        Map<String, Object> guest = guestForBooking(bookingId);
+        String finalNote = note;
+        AfterCommit.run(() -> bookingEmails.queuePaymentReceiptRequestNotification(
+                guest == null ? null : ((Number) guest.get("guest_id")).longValue(),
+                guest == null ? null : (String) guest.get("guest_name"),
+                bookingId.longValue(),
+                guest == null ? null : (String) guest.get("booking_number"),
+                newId, finalNote));
         return message("Receipt request sent successfully");
+    }
+
+    private Map<String, Object> receiptRequest(long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM payment_receipt_requests WHERE id = ?", id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** Guest identity fields for a booking's notification mail. */
+    private Map<String, Object> guestForBooking(Number bookingId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT g.id AS guest_id, g.nick_name AS guest_name, b.booking_number
+                FROM bookings b JOIN guests g ON g.id = b.guest_id
+                WHERE b.id = ?
+                """, bookingId.longValue());
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** {@code recompute_payment_status} — running paid/partial/unpaid position. */
+    private void recomputePaymentStatus(long bookingId) {
+        jdbc.update("""
+                UPDATE bookings AS b
+                SET payment_status = CASE
+                    WHEN b.status = 'voided' THEN 'void'
+                    WHEN COALESCE(b.is_complimentary, false)
+                         THEN COALESCE(b.payment_status, 'paid')
+                    WHEN b.total_amount <= 0 THEN 'paid'
+                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
+                            WHERE p.booking_id = b.id
+                              AND p.status = 'completed'
+                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0)
+                         >= b.total_amount THEN 'paid'
+                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
+                            WHERE p.booking_id = b.id
+                              AND p.status = 'completed'
+                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0) > 0
+                        THEN 'partial'
+                    ELSE 'unpaid'
+                END,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE b.id = ?
+                """, bookingId);
     }
 
     @GetMapping("/api/admin/payments/{id}/receipt")

@@ -5,10 +5,13 @@ import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.numD;
 import static com.hotelapp.rates.RatesController.str;
 
+import com.hotelapp.billing.InvoiceNumbers;
+import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
 import com.hotelapp.core.security.CurrentUser;
 import com.hotelapp.core.web.Page;
+import com.hotelapp.email.BookingEmails;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -33,12 +36,22 @@ public class BookingsController {
     private final JdbcTemplate jdbc;
     private final AuditWriter audit;
     private final BookingRelease bookingRelease;
+    private final BookingEmails bookingEmails;
+    private final InvoiceNumbers invoiceNumbers;
 
     public BookingsController(JdbcTemplate jdbc, AuditWriter audit,
-            BookingRelease bookingRelease) {
+            BookingRelease bookingRelease, BookingEmails bookingEmails,
+            InvoiceNumbers invoiceNumbers) {
         this.jdbc = jdbc;
         this.audit = audit;
         this.bookingRelease = bookingRelease;
+        this.bookingEmails = bookingEmails;
+        this.invoiceNumbers = invoiceNumbers;
+    }
+
+    /** Run {@code task} after the surrounding transaction commits. */
+    private static void afterCommit(Runnable task) {
+        AfterCommit.run(task);
     }
 
     @GetMapping("/api/bookings")
@@ -74,6 +87,7 @@ public class BookingsController {
     }
 
     @PostMapping("/api/bookings")
+    @Transactional
     public Map<String, Object> create(@RequestBody Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
         gatePermission(userId, "bookings:create");
@@ -90,9 +104,20 @@ public class BookingsController {
         if (!out.isAfter(in)) {
             throw ApiError.badRequest("Check-out date must be after check-in date");
         }
+        // Only rooms under maintenance or out of order are blocked outright.
+        String roomStatus = jdbc.queryForObject(
+                "SELECT COALESCE(status, 'available') FROM rooms WHERE id = ?",
+                String.class, roomId.longValue());
+        if ("maintenance".equals(roomStatus) || "out_of_order".equals(roomStatus)) {
+            throw ApiError.badRequest(
+                    "Room is not available - currently " + roomStatus.replace("_", " "));
+        }
         long overlapping = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM bookings
-                WHERE room_id = ? AND status NOT IN ('cancelled','void','checked_out')
+                WHERE room_id = ?
+                  AND status IN ('reserved','confirmed','checked_in','auto_checked_in',
+                                 'pending','pending_payment','pending_confirmation')
+                  AND status != 'voided'
                   AND check_in_date < CAST(? AS date) AND check_out_date > CAST(? AS date)
                 """, Long.class, roomId.longValue(), out, in);
         if (overlapping > 0) {
@@ -115,17 +140,36 @@ public class BookingsController {
                     subtotal, tax_amount, total_amount, payment_status, remarks,
                     booking_channel_id, market_code, created_by)
                 VALUES (?, ?, ?, CAST(? AS date), CAST(? AS date), COALESCE(?,1), COALESCE(?,0),
-                        'reserved', COALESCE(?,'direct'), ?, ?, ?, ?, ?, 'pending', ?,
+                        'confirmed', COALESCE(?,'direct'), ?, ?, ?, ?, ?, ?, ?,
                         ?, ?, ?)
                 RETURNING id
                 """, Long.class, bookingNumber, guestId.longValue(), roomId.longValue(),
                 checkIn, checkOut, num(body, "adults"), num(body, "children"),
                 str(body, "source"), roomRate, nights, subtotal, taxAmount,
-                subtotal.add(taxAmount), str(body, "remarks"),
+                subtotal.add(taxAmount),
+                str(body, "payment_status") == null ? "unpaid" : str(body, "payment_status"),
+                str(body, "remarks"),
                 num(body, "booking_channel_id"), str(body, "market_code"), userId);
+        // A confirmed booking reserves the room. A dirty room stays flagged
+        // for housekeeping — reserved_dirty blocks check-in until cleared.
+        boolean needsCleaning = List.of("dirty", "cleaning", "reserved_dirty")
+                .contains(roomStatus);
+        LocalDate today = jdbc.queryForObject("SELECT CURRENT_DATE", LocalDate.class);
+        String reservedStatus = needsCleaning ? "reserved_dirty" : "reserved";
+        jdbc.update("UPDATE rooms SET status = ?, status_notes = ? WHERE id = ?",
+                reservedStatus,
+                "Booking #" + bookingNumber + " - " + (needsCleaning
+                        ? "Reservation created, room needs cleaning before check-in"
+                        : in.equals(today) ? "Reservation arriving today"
+                        : "Future reservation"),
+                roomId.longValue());
         history(id, userId, "created", "Booking created as " + bookingNumber);
         audit.event(userId, "booking_created", "booking", id,
                 Map.of("booking_number", bookingNumber));
+        // Staff-created bookings are inserted `confirmed`, so this is the
+        // booking-confirmed trigger for the front-desk path. Best-effort and
+        // post-commit: a mail failure must not fail the booking creation.
+        afterCommit(() -> bookingEmails.tryQueueBookingConfirmationEmail(id));
         return one(id);
     }
 
@@ -197,6 +241,7 @@ public class BookingsController {
     }
 
     @PostMapping("/api/bookings/{id}/checkout")
+    @Transactional
     public Map<String, Object> checkout(@PathVariable long id) {
         long userId = CurrentUser.require().userId();
         gatePermission(userId, "bookings:update");
@@ -218,6 +263,20 @@ public class BookingsController {
         }
         history(id, userId, "checked_out", "Guest checked out");
         audit.event(userId, "guest_checked_out", "booking", id, null);
+        // Invoice + guest receipt mail, both best-effort and post-commit: a
+        // mail or invoice hiccup must not undo a committed checkout. The
+        // invoice number is the receipt's idempotency key; when invoicing
+        // fails upstream logs and sends nothing, and so do we.
+        afterCommit(() -> {
+            try {
+                String invoiceNumber = invoiceNumbers.ensureInvoiceForBooking(id, userId);
+                bookingEmails.tryQueueCheckoutReceiptEmail(id, invoiceNumber);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(BookingsController.class)
+                        .warn("Failed to issue checkout invoice for booking {}: {}",
+                                id, e.getMessage());
+            }
+        });
         return one(id);
     }
 

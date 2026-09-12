@@ -51,6 +51,20 @@ public class HotelSettings {
         return value.signum() > 0 ? value : fallback;
     }
 
+    /** {@code get_i32}: parsed integer or fallback when missing/unparseable. */
+    public int getInt(String key, int fallback) {
+        try {
+            String value = jdbc.queryForObject(
+                    "SELECT value FROM system_settings WHERE key = ?", String.class, key);
+            if (value != null) {
+                return Integer.parseInt(value.trim());
+            }
+        } catch (Exception ignored) {
+            // Missing row / non-numeric value falls back exactly like upstream.
+        }
+        return fallback;
+    }
+
     /** {@code get_positive_i32}: the stored value only when a positive integer. */
     public int getPositiveInt(String key, int fallback) {
         try {

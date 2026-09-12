@@ -208,4 +208,51 @@ public final class CommsModels {
 
     public record UnsubscribeApplyInput(String topic, Boolean global) {
     }
+
+    // ------------------------------------------------------------------
+    // Internal rows (never serialized — worker/scheduler only)
+    // ------------------------------------------------------------------
+
+    /** {@code EmailDelivery}: the full outbox row. Never serialized. */
+    public record EmailDelivery(
+            long id,
+            Long campaignId,
+            String kind,
+            long guestId,
+            String topic,
+            String recipientEmail,
+            String subject,
+            String bodyHtml,
+            String bodyText,
+            Long voucherId,
+            String status,
+            int attempts,
+            int maxAttempts,
+            OffsetDateTime nextAttemptAt,
+            String leaseOwner,
+            OffsetDateTime leaseExpiresAt,
+            String providerMessageId,
+            String idempotencyKey,
+            String lastError,
+            OffsetDateTime sentAt,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt) {
+    }
+
+    /** {@code AudienceGuest}: scheduler audience-expansion row. */
+    public record AudienceGuest(long id, String email, String firstName, String nickName) {
+    }
+
+    /** {@code PreArrivalBooking}: one booking due a pre-arrival reminder. */
+    public record PreArrivalBooking(
+            long id,
+            long guestId,
+            String bookingNumber,
+            String guestName,
+            String guestEmail,
+            java.time.LocalDate checkInDate,
+            java.time.LocalDate checkOutDate,
+            String roomNumber,
+            String roomTypeName) {
+    }
 }

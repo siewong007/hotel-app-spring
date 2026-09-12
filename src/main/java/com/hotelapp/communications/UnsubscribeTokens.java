@@ -44,6 +44,22 @@ public class UnsubscribeTokens {
                 + "." + signature;
     }
 
+    /**
+     * {@code unsubscribe_footer_html}: the marketing footer appended to
+     * outbound guest mail. Empty string when signing fails — a footer problem
+     * must not suppress the email itself.
+     */
+    public String footerHtml(long guestId) {
+        try {
+            String token = sign(guestId);
+            return "<p style=\"font-size:12px;color:#888\"><a href=\""
+                    + properties.getPublicBaseUrl() + "/unsubscribe/" + token
+                    + "\">Unsubscribe</a></p>";
+        } catch (ApiError e) {
+            return "";
+        }
+    }
+
     /** Returns the guest id when the token verifies, or {@code null}. */
     public Long verify(String token) {
         int dot = token.indexOf('.');
