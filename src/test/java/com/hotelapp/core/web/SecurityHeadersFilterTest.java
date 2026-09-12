@@ -34,9 +34,16 @@ class SecurityHeadersFilterTest {
                 .andExpect(header().string("X-Frame-Options", "DENY"))
                 .andExpect(header().string("X-XSS-Protection", "1; mode=block"))
                 .andExpect(header().string("Content-Security-Policy",
-                        "default-src 'self'; script-src 'self'; style-src 'self'; "
-                                + "img-src 'self' data: https:; font-src 'self' data:; "
-                                + "connect-src 'self'; frame-ancestors 'none';"))
+                        "default-src 'self'; script-src 'self' https://*.paypal.com"
+                                + " https://*.paypalobjects.com https://*.venmo.com;"
+                                + " style-src 'self' https://*.paypal.com"
+                                + " https://*.paypalobjects.com https://*.venmo.com;"
+                                + " img-src 'self' data: https:; font-src 'self' data:;"
+                                + " connect-src 'self' https://*.paypal.com"
+                                + " https://*.paypalobjects.com https://*.venmo.com;"
+                                + " frame-src 'self' https://*.paypal.com"
+                                + " https://*.paypalobjects.com https://*.venmo.com;"
+                                + " frame-ancestors 'none';"))
                 .andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"));
     }
 

@@ -56,21 +56,29 @@ public class RateLimitService {
     private final Map<Category, Map<String, Entry>> buckets = new ConcurrentHashMap<>();
 
     public Decision check(Category category, String key) {
+        return check(category, category.maxRequests, category.windowSecs, key);
+    }
+
+    Decision check(Category category, long maxRequests, long windowSecs, String key) {
         Instant now = Instant.now();
         Map<String, Entry> categoryBuckets =
                 buckets.computeIfAbsent(category, c -> new ConcurrentHashMap<>());
         Entry entry = categoryBuckets.computeIfAbsent(key, k -> new Entry());
         synchronized (entry) {
-            Instant cutoff = now.minusSeconds(category.windowSecs);
+            Instant cutoff = now.minusSeconds(windowSecs);
             while (!entry.timestamps.isEmpty() && !entry.timestamps.peekFirst().isAfter(cutoff)) {
                 entry.timestamps.pollFirst();
             }
-            if (entry.timestamps.size() < category.maxRequests) {
+            if (entry.timestamps.size() < maxRequests) {
                 entry.timestamps.addLast(now);
                 return new Decision(true, 0);
             }
+            // Defensive against a degenerate maxRequests = 0 configuration,
+            // where this branch is reached with an empty deque and the old
+            // peekFirst().getEpochSecond() threw NPE on the very first request.
             Instant oldest = entry.timestamps.peekFirst();
-            long retryAfter = category.windowSecs - (now.getEpochSecond() - oldest.getEpochSecond());
+            long retryAfter = oldest == null ? 0
+                    : windowSecs - (now.getEpochSecond() - oldest.getEpochSecond());
             return new Decision(false, Math.max(retryAfter, 1));
         }
     }

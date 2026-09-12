@@ -2,28 +2,28 @@ package com.hotelapp.gaps;
 
 import java.math.BigDecimal;
 
-import static com.hotelapp.rates.RatesController.message;
-import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.str;
 
-import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
 import com.hotelapp.core.security.CurrentUser;
 import com.hotelapp.core.security.PermissionGateHelper;
-import com.hotelapp.core.security.RateLimitService;
 import com.hotelapp.core.security.RbacService;
-import com.hotelapp.email.BookingEmails;
 import com.hotelapp.guests.GuestViews;
+import com.hotelapp.payments.PaymentModels.PendingPaymentPage;
+import com.hotelapp.portal.PortalModels.PaymentActionResponse;
+import com.hotelapp.payments.StaffPayments;
+import com.hotelapp.payments.StaffPayments.ReceiptPayload;
 import com.hotelapp.promotions.WelcomeVouchers;
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.InvalidMediaTypeException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -43,204 +44,89 @@ public class AccountGapsController {
 
     private final JdbcTemplate jdbc;
     private final AuditWriter audit;
-    private final RateLimitService rateLimiter;
     private final RbacService rbac;
     private final TransactionTemplate tx;
-
-    private final BookingEmails bookingEmails;
+    private final StaffPayments payments;
 
     public AccountGapsController(JdbcTemplate jdbc, AuditWriter audit,
-            RateLimitService rateLimiter, RbacService rbac, TransactionTemplate tx,
-            BookingEmails bookingEmails) {
+            RbacService rbac, TransactionTemplate tx, StaffPayments payments) {
         this.jdbc = jdbc;
         this.audit = audit;
-        this.rateLimiter = rateLimiter;
         this.rbac = rbac;
         this.tx = tx;
-        this.bookingEmails = bookingEmails;
+        this.payments = payments;
     }
 
 
     @GetMapping("/api/admin/payments/pending")
-    public List<Map<String, Object>> pendingPayments() {
-        gateAdmin();
-        return jdbc.queryForList("""
-                SELECT prr.*, b.booking_number FROM payment_receipt_requests prr
-                LEFT JOIN bookings b ON b.id = prr.booking_id
-                WHERE prr.status = 'pending' ORDER BY prr.created_at
-                """);
+    public PendingPaymentPage pendingPayments(
+            @RequestParam(required = false) Long page,
+            @RequestParam(name = "per_page", required = false) Long perPage) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        long[] limitOffset = limitOffset(page, perPage);
+        return payments.listPendingPayments(limitOffset[0], limitOffset[1]);
     }
 
     @GetMapping("/api/admin/payments/history")
-    public List<Map<String, Object>> approvalHistory() {
-        gateAdmin();
-        return jdbc.queryForList("""
-                SELECT * FROM payment_receipt_requests WHERE status <> 'pending'
-                ORDER BY created_at DESC LIMIT 200
-                """);
+    public PendingPaymentPage approvalHistory(
+            @RequestParam(required = false) Long page,
+            @RequestParam(name = "per_page", required = false) Long perPage) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        long[] limitOffset = limitOffset(page, perPage);
+        return payments.listPaymentApprovalHistory(limitOffset[0], limitOffset[1]);
+    }
+
+    /** {@code PendingPaymentsQuery::limit_offset} — page >= 1, per_page 1..=100 (default 20). */
+    static long[] limitOffset(Long page, Long perPage) {
+        long pp = perPage == null ? 20 : Math.clamp(perPage, 1, 100);
+        long p = page == null ? 1 : Math.max(page, 1);
+        return new long[] {pp, (p - 1) * pp};
     }
 
     @PutMapping("/api/admin/payments/{id}/approve")
-    @Transactional
-    public Map<String, Object> approvePayment(@PathVariable long id) {
+    public PaymentActionResponse approvePayment(@PathVariable long id) {
         long userId = CurrentUser.require().userId();
-        gateAdmin();
-        int updated = jdbc.update("""
-                UPDATE payment_receipt_requests SET status = 'approved', reviewed_by = ?,
-                    reviewed_at = NOW() WHERE id = ? AND status = 'pending'
-                """, userId, id);
-        if (updated == 0) {
-            throw ApiError.notFound("Pending payment not found");
-        }
-        Map<String, Object> receipt = jdbc.queryForMap(
-                "SELECT * FROM payment_receipt_requests WHERE id = ?", id);
-        BigDecimal amount = dec(receipt.get("amount"));
-        Number bookingId = (Number) receipt.get("booking_id");
-        Long paymentId = jdbc.queryForObject("""
-                INSERT INTO payments (booking_id, amount, payment_method, payment_date, status)
-                VALUES (?, ?, COALESCE(?, 'bank_transfer'), CURRENT_DATE, 'completed')
-                RETURNING id
-                """, Long.class, bookingId, amount, receipt.get("method"));
-        recomputePaymentStatus(bookingId.longValue());
-        // An approved claim confirms the booking — upstream confirm_booking_tx.
-        boolean confirmed = jdbc.update("""
-                UPDATE bookings SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
-                WHERE id = ? AND status IN ('pending','pending_payment','pending_confirmation')
-                """, bookingId.longValue()) == 1;
-        if (confirmed) {
-            jdbc.update("""
-                    INSERT INTO booking_history (booking_id, changed_field, old_value,
-                        new_value, changed_by, notes)
-                    VALUES (?, 'status', 'pending_payment', 'confirmed', ?, 'Payment approved')
-                    """, bookingId.longValue(), userId);
-        }
-        audit.event(userId, "payment_approved", "payment_receipt_request", id, null);
-        AfterCommit.run(() -> bookingEmails.tryQueuePaymentConfirmationEmail(
-                bookingId.longValue(), paymentId));
-        return message("Payment approved successfully");
+        PermissionGateHelper.check(userId, "payments:approve");
+        return payments.approvePayment(userId, id);
     }
 
     @PutMapping("/api/admin/payments/{id}/reject")
-    @Transactional
-    public Map<String, Object> rejectPayment(@PathVariable long id,
-            @RequestBody(required = false) Map<String, Object> body) {
+    public PaymentActionResponse rejectPayment(@PathVariable long id,
+            @RequestBody Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
-        gateAdmin();
+        PermissionGateHelper.check(userId, "payments:approve");
         String reason = body == null ? null : str(body, "reason");
-        if (reason == null || reason.trim().isEmpty()) {
-            throw ApiError.badRequest("A rejection reason is required.");
-        }
-        Map<String, Object> receipt = receiptRequest(id);
-        if (receipt == null || !"pending".equals(str(receipt, "status"))) {
-            throw ApiError.notFound("Pending payment not found");
-        }
-        jdbc.update("""
-                UPDATE payment_receipt_requests SET status = 'rejected', reviewed_by = ?,
-                    reviewed_at = NOW() WHERE id = ?
-                """, userId, id);
-        Number bookingId = (Number) receipt.get("booking_id");
-        audit.event(userId, "payment_rejected", "payment_receipt_request", id,
-                Map.of("reason", reason.trim()));
-        // Guest-facing rejection mail — best-effort, post-commit.
-        Map<String, Object> guest = guestForBooking(bookingId);
-        String reasonText = reason.trim();
-        AfterCommit.run(() -> bookingEmails.tryQueuePaymentRejectedNotification(
-                guest == null ? null : ((Number) guest.get("guest_id")).longValue(),
-                guest == null ? null : (String) guest.get("guest_name"),
-                bookingId.longValue(),
-                guest == null ? null : (String) guest.get("booking_number"),
-                id, reasonText));
-        return message("Payment rejected successfully");
+        return payments.rejectPayment(userId, id, reason);
     }
 
     @PostMapping("/api/admin/payments/{id}/request-receipt")
-    @Transactional
     public Map<String, Object> requestReceipt(@PathVariable long id,
             @RequestBody(required = false) Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
-        gateAdmin();
-        Map<String, Object> source = receiptRequest(id);
-        if (source == null) {
-            throw ApiError.notFound("Payment not found");
-        }
+        PermissionGateHelper.check(userId, "payments:approve");
         String note = body == null ? null : str(body, "message");
-        if (note != null && note.trim().isEmpty()) {
-            note = null;
-        }
-        Long newId = jdbc.queryForObject("""
-                INSERT INTO payment_receipt_requests (booking_id, amount, method, status)
-                SELECT booking_id, amount, method, 'requested' FROM payment_receipt_requests
-                WHERE id = ?
-                RETURNING id
-                """, Long.class, id);
-        Number bookingId = (Number) source.get("booking_id");
-        Map<String, Object> auditDetails = new LinkedHashMap<>();
-        auditDetails.put("booking_id", bookingId.longValue());
-        auditDetails.put("message", note);
-        audit.event(userId, "payment_receipt_requested", "payment_receipt_request",
-                newId, auditDetails);
-        Map<String, Object> guest = guestForBooking(bookingId);
-        String finalNote = note;
-        AfterCommit.run(() -> bookingEmails.queuePaymentReceiptRequestNotification(
-                guest == null ? null : ((Number) guest.get("guest_id")).longValue(),
-                guest == null ? null : (String) guest.get("guest_name"),
-                bookingId.longValue(),
-                guest == null ? null : (String) guest.get("booking_number"),
-                newId, finalNote));
-        return message("Receipt request sent successfully");
-    }
-
-    private Map<String, Object> receiptRequest(long id) {
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT * FROM payment_receipt_requests WHERE id = ?", id);
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    /** Guest identity fields for a booking's notification mail. */
-    private Map<String, Object> guestForBooking(Number bookingId) {
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT g.id AS guest_id, g.nick_name AS guest_name, b.booking_number
-                FROM bookings b JOIN guests g ON g.id = b.guest_id
-                WHERE b.id = ?
-                """, bookingId.longValue());
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    /** {@code recompute_payment_status} — running paid/partial/unpaid position. */
-    private void recomputePaymentStatus(long bookingId) {
-        jdbc.update("""
-                UPDATE bookings AS b
-                SET payment_status = CASE
-                    WHEN b.status = 'voided' THEN 'void'
-                    WHEN COALESCE(b.is_complimentary, false)
-                         THEN COALESCE(b.payment_status, 'paid')
-                    WHEN b.total_amount <= 0 THEN 'paid'
-                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
-                            WHERE p.booking_id = b.id
-                              AND p.status = 'completed'
-                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0)
-                         >= b.total_amount THEN 'paid'
-                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
-                            WHERE p.booking_id = b.id
-                              AND p.status = 'completed'
-                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0) > 0
-                        THEN 'partial'
-                    ELSE 'unpaid'
-                END,
-                updated_at = CURRENT_TIMESTAMP
-                WHERE b.id = ?
-                """, bookingId);
+        payments.requestPaymentReceipt(userId, id, note);
+        return Map.of("requested", true);
     }
 
     @GetMapping("/api/admin/payments/{id}/receipt")
-    public Map<String, Object> downloadReceipt(@PathVariable long id) {
-        gateAdmin();
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT * FROM payment_receipt_requests WHERE id = ?", id);
-        if (rows.isEmpty()) {
-            throw ApiError.notFound("Payment not found");
+    public ResponseEntity<byte[]> downloadReceipt(@PathVariable long id) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        ReceiptPayload receipt = payments.loadPaymentReceipt(id);
+        MediaType contentType;
+        try {
+            contentType = MediaType.parseMediaType(receipt.contentType());
+        } catch (InvalidMediaTypeException e) {
+            throw ApiError.internal("Stored receipt has an invalid content type.");
         }
-        return rows.get(0);
+        return ResponseEntity.ok()
+                .contentType(contentType)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=payment-receipt-" + id)
+                .body(receipt.bytes());
     }
 
     @PostMapping("/api/guests/{id}/portal-account")
@@ -496,41 +382,4 @@ public class AccountGapsController {
         return body;
     }
 
-    private void gateAdmin() {
-        PermissionGateHelper.checkAny(CurrentUser.require().userId(),
-                List.of("payments:approve", "payments:manage", "bookings:manage",
-                        "settings:manage"));
-    }
-
-
-    private static String clientIp(HttpServletRequest request) {
-        String trusted = System.getenv("TRUST_PROXY_HEADERS");
-        if ("true".equalsIgnoreCase(trusted)) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                return forwarded.split(",")[0].trim();
-            }
-        }
-        return request.getRemoteAddr();
-    }
-
-    private static String randomBase32() {
-        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        StringBuilder builder = new StringBuilder();
-        java.security.SecureRandom random = new java.security.SecureRandom();
-        for (int i = 0; i < 32; i++) {
-            builder.append(alphabet.charAt(random.nextInt(alphabet.length())));
-        }
-        return builder.toString();
-    }
-
-    private BigDecimal dec(Object value) {
-        if (value instanceof Number n) {
-            return new BigDecimal(n.toString());
-        }
-        if (value instanceof String s && !s.isBlank()) {
-            return new BigDecimal(s.trim());
-        }
-        return null;
-    }
 }

@@ -272,11 +272,11 @@ Steps:
 
 For each, port the upstream diff and prove with a test:
 
-- [ ] `POST /api/data-transfer/import` + full-import users/guests FK-cycle ordering fix (`37ab462c`, `c7343b29`) — `BE/src/{routes,handlers,services,repositories}/data_transfer.rs`.
-- [ ] Payments: bank details required with general defaults (`ab946136`), legacy references editable + owner-named conflict (`668b3936`), PayPal SDK checkout + stale-attempt expiry (`b99f038f`, `e905c2b5`) — `BE/src/{routes,handlers,services,repositories}/payments.rs`, `services/paypal_client.rs`.
-- [ ] `hotel_business_number` readable pre-auth via public settings surface (is_public) — verify the existing settings GET honors `is_public`; used by `/legal` pages.
-- [ ] Any residual diffs: run `git diff b7bce0a8..origin/master --stat -- src/ | grep -v test` and tick off every file not covered by Tasks 3–10 (e.g. `rate_limiter.rs` zero-limit guard `aff1237b`, `routes/mod.rs` changes).
-- [ ] `./mvnw verify` green → commit `feat: sweep remaining upstream deltas (data-transfer import, payments hardening, limiter guard)`.
+- [x] `POST /api/data-transfer/import` + full-import users/guests FK-cycle ordering fix (`37ab462c`, `c7343b29`) — `BE/src/{routes,handlers,services,repositories}/data_transfer.rs`. → `datatransfer/` package: V1+V2 payloads, `SET CONSTRAINTS DEFERRED`, users↔guests cycle resolution, super-admin gate, 422 on malformed `ImportRequest`.
+- [x] Payments: bank details required with general defaults (`ab946136`), legacy references editable + owner-named conflict (`668b3936`), PayPal SDK checkout + stale-attempt expiry (`b99f038f`, `e905c2b5`) — `BE/src/{routes,handlers,services,repositories}/payments.rs`, `services/paypal_client.rs`. → `payments/` package (`StaffPayments`/`StaffPaymentsTx`/`PaymentRepo`/`PaymentsSweep`), `loyalty/LoyaltyAwards`, admin queue rewritten onto payment-row semantics, PayPal/Venmo CSP allow-list.
+- [x] `hotel_business_number` readable pre-auth via public settings surface (is_public) — verify the existing settings GET honors `is_public`; used by `/legal` pages. → `GET /api/settings/public` already filters `WHERE is_public`; seed marks the key public.
+- [x] Any residual diffs: run `git diff b7bce0a8..origin/master --stat -- src/ | grep -v test` and tick off every file not covered by Tasks 3–10 (e.g. `rate_limiter.rs` zero-limit guard `aff1237b`, `routes/mod.rs` changes). → zero-limit guard ported with a config-driven `check` overload; `PUT /api/admin/online-inventory/bulk` added; residual files all map to Tasks 3–10 packages.
+- [x] `./mvnw verify` green → commit `feat: sweep remaining upstream deltas (data-transfer import, payments hardening, limiter guard)`.
 
 ### Task 12: Reconcile stale/renamed mappings
 

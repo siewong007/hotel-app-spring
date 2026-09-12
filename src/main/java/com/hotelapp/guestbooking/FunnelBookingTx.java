@@ -264,6 +264,55 @@ public class FunnelBookingTx {
                 """, roomTypeId, stayDate, reserved, enabled, customPrice, updatedBy);
     }
 
+    /**
+     * {@code update_online_inventory}'s transaction body: the upsert and the
+     * audit row land together or not at all.
+     */
+    @Transactional
+    public void updateOnlineInventoryTx(long roomTypeId, LocalDate stayDate, int reserved,
+            boolean enabled, BigDecimal customPrice, long actorId) {
+        upsertOnlineInventory(roomTypeId, stayDate, reserved, enabled, customPrice, actorId);
+        audit.event(actorId, "online_inventory.updated", "online_inventory", null,
+                Map.of("room_type_id", roomTypeId, "stay_date", stayDate.toString()));
+    }
+
+    /** {@code delete_online_inventory_tx}: reset one cell to defaults. */
+    public void deleteOnlineInventory(long roomTypeId, LocalDate stayDate) {
+        lockRoomType(roomTypeId);
+        jdbc.update("DELETE FROM online_inventory_allocations"
+                + " WHERE room_type_id = ? AND stay_date = ?", roomTypeId, stayDate);
+    }
+
+    /**
+     * {@code bulk_update_online_inventory}'s transaction body: every resolved
+     * cell commits or none do — the grid's review-and-apply flow promises the
+     * hotel an all-or-nothing write.
+     */
+    public sealed interface ResolvedCell {
+        record Set(long roomTypeId, LocalDate stayDate, int reserved, boolean enabled,
+                BigDecimal price) implements ResolvedCell {
+        }
+
+        record Reset(long roomTypeId, LocalDate stayDate) implements ResolvedCell {
+        }
+    }
+
+    @Transactional
+    public void bulkUpdateOnlineInventory(List<ResolvedCell> cells, long actorId,
+            List<Long> roomTypeIds, LocalDate minDate, LocalDate maxDate) {
+        for (ResolvedCell cell : cells) {
+            switch (cell) {
+                case ResolvedCell.Set set -> upsertOnlineInventory(set.roomTypeId(),
+                        set.stayDate(), set.reserved(), set.enabled(), set.price(), actorId);
+                case ResolvedCell.Reset reset -> deleteOnlineInventory(reset.roomTypeId(),
+                        reset.stayDate());
+            }
+        }
+        audit.event(actorId, "online_inventory.bulk_updated", "online_inventory", null,
+                Map.of("cell_count", cells.size(), "room_type_ids", roomTypeIds,
+                        "date_min", minDate.toString(), "date_max", maxDate.toString()));
+    }
+
     // ------------------------------------------------------------------
     // Composed booking writes (service.rs::create / create_anonymous tx body)
     // ------------------------------------------------------------------

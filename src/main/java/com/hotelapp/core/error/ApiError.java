@@ -13,6 +13,7 @@ public final class ApiError extends RuntimeException {
         UNAUTHORIZED,
         FORBIDDEN,
         BAD_REQUEST,
+        UNPROCESSABLE_ENTITY,
         NOT_FOUND,
         CONFLICT,
         INTERNAL,
@@ -65,6 +66,10 @@ public final class ApiError extends RuntimeException {
 
     public static ApiError badRequest(String message) {
         return new ApiError(Kind.BAD_REQUEST, message, null, null);
+    }
+
+    public static ApiError unprocessableEntity(String message) {
+        return new ApiError(Kind.UNPROCESSABLE_ENTITY, message, null, null);
     }
 
     public static ApiError notFound(String message) {

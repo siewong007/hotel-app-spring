@@ -366,30 +366,6 @@ public class InventoryGapsController {
         return run;
     }
 
-    @GetMapping("/api/data-transfer/export/preview")
-    public Map<String, Object> exportPreview() {
-        long uid = userId();
-        PermissionGateHelper.checkAny(uid, List.of("data_transfer:export",
-                "data_transfer:manage", "settings:manage"));
-        Map<String, Object> counts = new LinkedHashMap<>();
-        counts.put("rooms", count("rooms"));
-        counts.put("guests", count("guests"));
-        counts.put("bookings", count("bookings"));
-        counts.put("payments", count("payments"));
-        return counts;
-    }
-
-    @GetMapping("/api/data-transfer/export")
-    public Map<String, Object> exportGet() {
-        long uid = userId();
-        PermissionGateHelper.checkAny(uid, List.of("data_transfer:export",
-                "data_transfer:manage", "settings:manage"));
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("preview_only", true);
-        body.put("hint", "Use POST /api/data-transfer/export for the full bundle");
-        return body;
-    }
-
     private void gate(long userId, String permission) {
         PermissionGateHelper.check(userId, permission);
     }
@@ -413,11 +389,6 @@ public class InventoryGapsController {
 
     private Map<String, Object> oneRoom(long id) {
         return one("rooms", "id", id);
-    }
-
-    private long count(String table) {
-        Long value = jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Long.class);
-        return value == null ? 0 : value;
     }
 
     static BigDecimal numD(Object value) {

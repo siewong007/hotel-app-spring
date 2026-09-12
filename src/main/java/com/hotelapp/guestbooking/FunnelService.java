@@ -18,7 +18,9 @@ import com.hotelapp.guestbooking.FunnelModels.GuestBookingQuote;
 import com.hotelapp.guestbooking.FunnelModels.GuestBookingVoucherOptions;
 import com.hotelapp.guestbooking.FunnelModels.GuestContact;
 import com.hotelapp.guestbooking.FunnelModels.NightlyRate;
+import com.hotelapp.guestbooking.FunnelModels.BulkUpdateOnlineInventoryRequest;
 import com.hotelapp.guestbooking.FunnelModels.OnlineInventoryAllocation;
+import com.hotelapp.guestbooking.FunnelModels.OnlineInventoryCellUpdate;
 import com.hotelapp.guestbooking.FunnelModels.RoomTypeInventory;
 import com.hotelapp.guestbooking.FunnelModels.UpdateOnlineInventoryRequest;
 import com.hotelapp.guestbooking.FunnelModels.ValidatedAnonymousGuest;
@@ -36,8 +38,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -635,7 +639,7 @@ public class FunnelService {
     // Online inventory admin
     // ------------------------------------------------------------------
 
-    /** {@code list_online_inventory}. */
+    /** {@code list_online_inventory} = range query over a single date. */
     public List<OnlineInventoryAllocation> listOnlineInventory(String stayDateRaw) {
         LocalDate stayDate;
         try {
@@ -643,60 +647,179 @@ public class FunnelService {
         } catch (Exception e) {
             throw ApiError.badRequest("Invalid stay date. Use YYYY-MM-DD");
         }
-        LocalDate nextDate = stayDate.plusDays(1);
+        return listOnlineInventoryRange(stayDate, stayDate);
+    }
+
+    /**
+     * {@code list_online_inventory_range}: one row per active room type per
+     * date in [from, to]. {@code standard_price} resolves the nightly rate a
+     * guest pays without a custom override — weekday/weekend rate, then base
+     * price; rate plans never feed public pricing.
+     */
+    public List<OnlineInventoryAllocation> listOnlineInventoryRange(LocalDate from,
+            LocalDate to) {
         return jdbc.query("""
+                WITH dates AS (
+                    SELECT generate_series(?::date, ?::date, interval '1 day')::date AS stay_date
+                )
                 SELECT rt.id AS room_type_id, rt.code AS room_type_code, rt.name AS room_type_name,
-                       COUNT(r.id)::bigint AS physical_available_rooms,
+                       d.stay_date,
+                       COALESCE(avail.cnt, 0)::bigint AS physical_available_rooms,
                        COALESCE(a.walk_in_reserved_rooms, 0) AS walk_in_reserved_rooms,
                        COALESCE(a.online_booking_enabled, true) AS online_booking_enabled,
-                       a.custom_price::text AS custom_price
+                       a.custom_price::text AS custom_price,
+                       (a.room_type_id IS NOT NULL) AS is_override,
+                       COALESCE(
+                           CASE WHEN extract(isodow FROM d.stay_date) IN (6, 7)
+                                THEN rt.weekend_rate ELSE rt.weekday_rate END,
+                           rt.base_price)::text AS standard_price
                 FROM room_types rt
-                LEFT JOIN rooms r ON r.room_type_id = rt.id AND r.is_active = true
-                  AND COALESCE(r.status, 'available') NOT IN ('maintenance', 'out_of_order')
-                  AND NOT EXISTS (SELECT 1 FROM bookings b WHERE b.room_id = r.id
-                    AND b.status IN ('reserved', 'confirmed', 'checked_in', 'auto_checked_in',
-                                     'pending', 'pending_payment', 'pending_confirmation')
-                    AND b.check_in_date < ? AND b.check_out_date > ?)
+                CROSS JOIN dates d
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*)::bigint AS cnt
+                    FROM rooms r
+                    WHERE r.room_type_id = rt.id AND r.is_active = true
+                      AND COALESCE(r.status, 'available') NOT IN ('maintenance', 'out_of_order')
+                      AND NOT EXISTS (SELECT 1 FROM bookings b WHERE b.room_id = r.id
+                        AND b.status IN ('reserved', 'confirmed', 'checked_in', 'auto_checked_in',
+                                         'pending', 'pending_payment', 'pending_confirmation')
+                        AND b.check_in_date < d.stay_date + 1 AND b.check_out_date > d.stay_date)
+                ) avail ON true
                 LEFT JOIN online_inventory_allocations a
-                  ON a.room_type_id = rt.id AND a.stay_date = ?
+                  ON a.room_type_id = rt.id AND a.stay_date = d.stay_date
                 WHERE rt.is_active = true
-                GROUP BY rt.id, rt.code, rt.name, a.walk_in_reserved_rooms,
-                         a.online_booking_enabled, a.custom_price
-                ORDER BY rt.name
+                ORDER BY rt.name, d.stay_date
                 """, (rs, i) -> {
+            LocalDate stayDate = rs.getObject("stay_date", LocalDate.class);
             long physical = rs.getLong("physical_available_rooms");
             int reserved = rs.getInt("walk_in_reserved_rooms");
             boolean enabled = rs.getBoolean("online_booking_enabled");
             return new OnlineInventoryAllocation(
                     rs.getLong("room_type_id"), rs.getString("room_type_code"),
                     rs.getString("room_type_name"), stayDate, physical, reserved, enabled,
-                    dec(rs.getString("custom_price")),
+                    dec(rs.getString("custom_price")), dec(rs.getString("standard_price")),
+                    rs.getBoolean("is_override"),
                     enabled ? Math.max(physical - reserved, 0) : 0);
-        }, nextDate, stayDate, stayDate);
+        }, from, to);
+    }
+
+    /** {@code validate_inventory_fields}. */
+    private static void validateInventoryFields(int reserved, BigDecimal customPrice) {
+        if (reserved < 0) {
+            throw ApiError.badRequest("Walk-in reserve cannot be negative");
+        }
+        if (customPrice != null) {
+            if (customPrice.signum() <= 0) {
+                throw ApiError.badRequest("Custom online price must be greater than zero");
+            }
+            if (customPrice.scale() > 2) {
+                throw ApiError.badRequest(
+                        "Custom online price can have at most two decimal places");
+            }
+        }
+    }
+
+    /** {@code MAX_BULK_INVENTORY_CELLS}. */
+    public static final int MAX_BULK_INVENTORY_CELLS = 500;
+
+    /**
+     * {@code resolve_bulk_cells}: validation is pure — dates, duplicates,
+     * required-field and field-bound errors all surface before the write tx
+     * opens.
+     */
+    static List<FunnelBookingTx.ResolvedCell> resolveBulkCells(
+            List<OnlineInventoryCellUpdate> cells) {
+        if (cells == null || cells.isEmpty()) {
+            throw ApiError.badRequest("At least one cell is required");
+        }
+        if (cells.size() > MAX_BULK_INVENTORY_CELLS) {
+            throw ApiError.badRequest("Too many cells in one update (max 500)");
+        }
+        Set<String> seen = new HashSet<>();
+        List<FunnelBookingTx.ResolvedCell> resolved = new ArrayList<>(cells.size());
+        for (OnlineInventoryCellUpdate cell : cells) {
+            LocalDate stayDate;
+            try {
+                stayDate = LocalDate.parse(cell.stayDate() == null ? "" : cell.stayDate().trim());
+            } catch (Exception e) {
+                throw ApiError.badRequest("Invalid stay date. Use YYYY-MM-DD");
+            }
+            if (!seen.add(cell.roomTypeId() + "|" + stayDate)) {
+                throw ApiError.badRequest("Duplicate cell for a room type and date");
+            }
+            if (Boolean.TRUE.equals(cell.reset())) {
+                resolved.add(new FunnelBookingTx.ResolvedCell.Reset(cell.roomTypeId(), stayDate));
+                continue;
+            }
+            if (cell.walkInReservedRooms() == null || cell.onlineBookingEnabled() == null) {
+                throw ApiError.badRequest(
+                        "walk_in_reserved_rooms and online_booking_enabled are required");
+            }
+            validateInventoryFields(cell.walkInReservedRooms(), cell.customPrice());
+            resolved.add(new FunnelBookingTx.ResolvedCell.Set(cell.roomTypeId(), stayDate,
+                    cell.walkInReservedRooms(), cell.onlineBookingEnabled(),
+                    cell.customPrice()));
+        }
+        return resolved;
+    }
+
+    /**
+     * {@code bulk_update_online_inventory}: one all-or-nothing tx, one
+     * availability_changed publish per touched room type over its [first,
+     * last+1) span, then the refreshed rows for the touched types only.
+     */
+    public List<OnlineInventoryAllocation> bulkUpdateOnlineInventory(
+            BulkUpdateOnlineInventoryRequest request, long actorId) {
+        List<FunnelBookingTx.ResolvedCell> resolved = resolveBulkCells(request.cells());
+
+        Map<Long, LocalDate[]> spanByRoomType = new TreeMap<>();
+        for (FunnelBookingTx.ResolvedCell cell : resolved) {
+            long roomTypeId;
+            LocalDate stayDate;
+            if (cell instanceof FunnelBookingTx.ResolvedCell.Set set) {
+                roomTypeId = set.roomTypeId();
+                stayDate = set.stayDate();
+            } else {
+                FunnelBookingTx.ResolvedCell.Reset reset =
+                        (FunnelBookingTx.ResolvedCell.Reset) cell;
+                roomTypeId = reset.roomTypeId();
+                stayDate = reset.stayDate();
+            }
+            spanByRoomType.compute(roomTypeId, (k, span) -> span == null
+                    ? new LocalDate[]{stayDate, stayDate}
+                    : new LocalDate[]{span[0].isBefore(stayDate) ? span[0] : stayDate,
+                            span[1].isAfter(stayDate) ? span[1] : stayDate});
+        }
+        LocalDate minDate = spanByRoomType.values().stream().map(s -> s[0])
+                .min(LocalDate::compareTo).orElseThrow();
+        LocalDate maxDate = spanByRoomType.values().stream().map(s -> s[1])
+                .max(LocalDate::compareTo).orElseThrow();
+
+        bookingTx.bulkUpdateOnlineInventory(resolved, actorId,
+                List.copyOf(spanByRoomType.keySet()), minDate, maxDate);
+
+        for (Map.Entry<Long, LocalDate[]> entry : spanByRoomType.entrySet()) {
+            hub.publish(new AvailabilityEvent(UUID.randomUUID().toString(),
+                    "availability_changed", "online_inventory_changed", entry.getKey(),
+                    entry.getValue()[0], entry.getValue()[1].plusDays(1), null));
+        }
+        Set<Long> roomTypeIds = spanByRoomType.keySet();
+        return listOnlineInventoryRange(minDate, maxDate).stream()
+                .filter(a -> roomTypeIds.contains(a.roomTypeId()))
+                .toList();
     }
 
     /** {@code update_online_inventory} + the availability_changed publish. */
     public OnlineInventoryAllocation updateOnlineInventory(long roomTypeId, String stayDateRaw,
             UpdateOnlineInventoryRequest request, long actorId) {
-        if (request.walkInReservedRooms() < 0) {
-            throw ApiError.badRequest("Walk-in reserve cannot be negative");
-        }
-        if (request.customPrice() != null) {
-            if (request.customPrice().signum() <= 0) {
-                throw ApiError.badRequest("Custom online price must be greater than zero");
-            }
-            if (request.customPrice().scale() > 2) {
-                throw ApiError.badRequest(
-                        "Custom online price can have at most two decimal places");
-            }
-        }
+        validateInventoryFields(request.walkInReservedRooms(), request.customPrice());
         LocalDate stayDate;
         try {
             stayDate = LocalDate.parse(stayDateRaw == null ? "" : stayDateRaw.trim());
         } catch (Exception e) {
             throw ApiError.badRequest("Invalid stay date. Use YYYY-MM-DD");
         }
-        bookingTx.upsertOnlineInventory(roomTypeId, stayDate, request.walkInReservedRooms(),
+        bookingTx.updateOnlineInventoryTx(roomTypeId, stayDate, request.walkInReservedRooms(),
                 request.onlineBookingEnabled(), request.customPrice(), actorId);
         OnlineInventoryAllocation allocation = listOnlineInventory(stayDate.toString()).stream()
                 .filter(row -> row.roomTypeId() == roomTypeId).findFirst()

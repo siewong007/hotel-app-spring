@@ -24,6 +24,7 @@ public final class ApiErrorResponses {
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+            case UNPROCESSABLE_ENTITY -> HttpStatus.UNPROCESSABLE_ENTITY;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
             case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
@@ -64,6 +65,8 @@ public final class ApiErrorResponses {
                 ErrorMessagePolisher.polish(error.message(), "That request couldn't be processed.");
             case NOT_FOUND ->
                 ErrorMessagePolisher.polish(error.message(), "We couldn't find what you were looking for.");
+            case UNPROCESSABLE_ENTITY ->
+                ErrorMessagePolisher.polish(error.message(), "That request couldn't be processed.");
             case CONFLICT ->
                 ErrorMessagePolisher.polish(error.message(), "That action conflicts with the current state.");
             case SERVICE_UNAVAILABLE ->

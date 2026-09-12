@@ -217,35 +217,6 @@ public class OpsController {
         return rows.get(0);
     }
 
-    @PostMapping("/api/data-transfer/export")
-    public Map<String, Object> exportData() {
-        long userId = CurrentUser.require().userId();
-        gateAnyOf(userId, List.of("data_transfer:export", "data_transfer:manage",
-                "settings:manage"));
-        Map<String, Object> bundle = new LinkedHashMap<>();
-        bundle.put("rooms", jdbc.queryForList("SELECT * FROM rooms"));
-        bundle.put("room_types", jdbc.queryForList("SELECT * FROM room_types"));
-        bundle.put("guests", jdbc.queryForList("SELECT * FROM guests"));
-        bundle.put("bookings", jdbc.queryForList("SELECT * FROM bookings"));
-        bundle.put("payments", jdbc.queryForList("SELECT * FROM payments"));
-        bundle.put("system_settings", jdbc.queryForList(
-                "SELECT key, value, value_type, category FROM system_settings"));
-        audit.event(userId, "data_transfer_export", "data_transfer", null, null);
-        return bundle;
-    }
-
-    @PostMapping("/api/data-transfer/import")
-    public Map<String, Object> importData(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        gateAnyOf(userId, List.of("data_transfer:import", "data_transfer:manage",
-                "settings:manage"));
-        audit.event(userId, "data_transfer_import_requested", "data_transfer", null,
-                Map.of("sections", body.keySet()));
-        throw ApiError.badRequest(
-                "Import accepts the export bundle via a multipart file upload; "
-                        + "use the deploy import script instead");
-    }
-
     private void gate(long userId, String permission) {
         com.hotelapp.core.security.PermissionGateHelper.check(userId, permission);
     }

@@ -14,8 +14,13 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     static final String X_FRAME_OPTIONS = "DENY";
     static final String X_XSS_PROTECTION = "1; mode=block";
     static final String CONTENT_SECURITY_POLICY =
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
-                    + " https:; font-src 'self' data:; connect-src 'self'; frame-ancestors"
+            "default-src 'self'; script-src 'self' https://*.paypal.com"
+                    + " https://*.paypalobjects.com https://*.venmo.com; style-src 'self'"
+                    + " https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com;"
+                    + " img-src 'self' data: https:; font-src 'self' data:;"
+                    + " connect-src 'self' https://*.paypal.com https://*.paypalobjects.com"
+                    + " https://*.venmo.com; frame-src 'self' https://*.paypal.com"
+                    + " https://*.paypalobjects.com https://*.venmo.com; frame-ancestors"
                     + " 'none';";
     static final String REFERRER_POLICY = "strict-origin-when-cross-origin";
 

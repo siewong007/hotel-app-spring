@@ -6,6 +6,7 @@ import com.hotelapp.core.security.PermissionGateHelper;
 import com.hotelapp.core.security.RateLimitService;
 import com.hotelapp.guestbooking.FunnelModels.AnonymousBookingRequest;
 import com.hotelapp.guestbooking.FunnelModels.BookingQuoteRequest;
+import com.hotelapp.guestbooking.FunnelModels.BulkUpdateOnlineInventoryRequest;
 import com.hotelapp.guestbooking.FunnelModels.CreateGuestBookingRequest;
 import com.hotelapp.guestbooking.FunnelModels.GuestBookingConfirmation;
 import com.hotelapp.guestbooking.FunnelModels.GuestBookingOffer;
@@ -164,6 +165,14 @@ public class BookingFunnelController {
         PermissionGateHelper.checkAny(CurrentUser.require().userId(),
                 List.of("rooms:update", "rooms:manage"));
         return funnel.listOnlineInventory(stayDate);
+    }
+
+    @PutMapping("/api/admin/online-inventory/bulk")
+    public List<OnlineInventoryAllocation> bulkUpdateOnlineInventory(
+            @RequestBody BulkUpdateOnlineInventoryRequest body) {
+        long actorId = CurrentUser.require().userId();
+        PermissionGateHelper.checkAny(actorId, List.of("rooms:update", "rooms:manage"));
+        return funnel.bulkUpdateOnlineInventory(body, actorId);
     }
 
     @PutMapping("/api/admin/online-inventory/{roomTypeId}/{stayDate}")

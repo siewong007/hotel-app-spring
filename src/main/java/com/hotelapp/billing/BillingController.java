@@ -1,27 +1,29 @@
 package com.hotelapp.billing;
 
-import static com.hotelapp.rates.RatesController.message;
-import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.str;
 
-import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
 import com.hotelapp.core.security.CurrentUser;
-import com.hotelapp.email.BookingEmails;
+import com.hotelapp.core.security.PermissionGateHelper;
+import com.hotelapp.payments.PaymentModels.Payment;
+import com.hotelapp.payments.PaymentModels.PaymentRequest;
+import com.hotelapp.payments.PaymentModels.PaymentSummary;
+import com.hotelapp.payments.PaymentModels.PaymentWorkflowSummary;
+import com.hotelapp.payments.PaymentModels.RecordPaymentRequest;
+import com.hotelapp.payments.PaymentModels.UpdatePaymentRequest;
+import com.hotelapp.payments.StaffPayments;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,223 +31,86 @@ public class BillingController {
 
     private final JdbcTemplate jdbc;
     private final AuditWriter audit;
-    private final BookingEmails bookingEmails;
+    private final StaffPayments payments;
 
     public BillingController(JdbcTemplate jdbc, AuditWriter audit,
-            BookingEmails bookingEmails) {
+            StaffPayments payments) {
         this.jdbc = jdbc;
         this.audit = audit;
-        this.bookingEmails = bookingEmails;
+        this.payments = payments;
     }
 
     @GetMapping("/api/payments/calculate/{bookingId}")
-    public Map<String, Object> calculate(@PathVariable long bookingId) {
-        requireBooking(bookingId);
-        Map<String, Object> totals = jdbc.queryForMap("""
-                SELECT COALESCE(total_amount, 0) AS total_amount,
-                       COALESCE(tax_amount, 0) AS tax_amount,
-                       COALESCE(discount_amount, 0) AS discount_amount,
-                       COALESCE(deposit_amount, 0) AS deposit_amount,
-                       status, payment_status
-                FROM bookings WHERE id = ?
-                """, bookingId);
-        BigDecimal paid = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(amount), 0) FROM payments "
-                        + "WHERE booking_id = ? AND status IN ('completed','confirmed')",
-                BigDecimal.class, bookingId));
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("booking_id", bookingId);
-        body.putAll(totals);
-        body.put("paid_amount", paid);
-        body.put("balance_due", dec(totals.get("total_amount")).subtract(paid));
-        return body;
-    }
-
-    private long insertPayment(long userId, long bookingId, Map<String, Object> body) {
-        requireBooking(bookingId);
-        BigDecimal amount = numD(body.get("amount"));
-        String receiptNumber = "RCP-" + System.currentTimeMillis();
-        Long id = jdbc.queryForObject("""
-                INSERT INTO payments (booking_id, amount, payment_method, payment_date,
-                    reference_number, notes, status, recorded_by)
-                VALUES (?, ?, COALESCE(?, 'cash'), CURRENT_DATE, ?, ?, 'completed', ?)
-                RETURNING id
-                """, Long.class, bookingId, amount, str(body, "payment_method"),
-                receiptNumber, str(body, "reference_number"), str(body, "notes"), userId);
-        return id;
-    }
-
-    private static long requiredBookingId(Map<String, Object> body) {
-        Number bookingId = num(body, "booking_id");
-        if (bookingId == null || numD(body.get("amount")) == null) {
-            throw ApiError.badRequest("Booking ID and amount are required");
-        }
-        return bookingId.longValue();
-    }
-
-    /** {@code recompute_payment_status} — running paid/partial/unpaid position. */
-    private void recomputePaymentStatus(long bookingId) {
-        jdbc.update("""
-                UPDATE bookings AS b
-                SET payment_status = CASE
-                    WHEN b.status = 'voided' THEN 'void'
-                    WHEN COALESCE(b.is_complimentary, false)
-                         THEN COALESCE(b.payment_status, 'paid')
-                    WHEN b.total_amount <= 0 THEN 'paid'
-                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
-                            WHERE p.booking_id = b.id
-                              AND p.status = 'completed'
-                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0)
-                         >= b.total_amount THEN 'paid'
-                    WHEN COALESCE((SELECT SUM(p.amount) FROM payments p
-                            WHERE p.booking_id = b.id
-                              AND p.status = 'completed'
-                              AND COALESCE(p.payment_type, 'booking') != 'refund'), 0) > 0
-                        THEN 'partial'
-                    ELSE 'unpaid'
-                END,
-                updated_at = CURRENT_TIMESTAMP
-                WHERE b.id = ?
-                """, bookingId);
+    public PaymentSummary calculate(@PathVariable long bookingId) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        return payments.calculatePaymentSummary(bookingId);
     }
 
     @PostMapping("/api/payments/record-payment")
-    @Transactional
-    public Map<String, Object> recordPayment(@RequestBody Map<String, Object> body) {
+    public Map<String, Object> recordPayment(@RequestBody RecordPaymentRequest body) {
         long userId = CurrentUser.require().userId();
-        long bookingId = requiredBookingId(body);
-        long paymentId = insertPayment(userId, bookingId, body);
-        recomputePaymentStatus(bookingId);
-
-        // A desk payment that settles the balance confirms a still-pending
-        // booking — the same as an approved bank-transfer claim. Only the
-        // payment that flips the booking mails the guest.
-        String paymentStatus = jdbc.queryForObject(
-                "SELECT payment_status FROM bookings WHERE id = ?",
-                String.class, bookingId);
-        boolean confirmedByThisPayment = false;
-        if ("paid".equals(paymentStatus)) {
-            confirmedByThisPayment = jdbc.update("""
-                    UPDATE bookings SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ? AND status IN ('pending','pending_payment','pending_confirmation')
-                    """, bookingId) == 1;
-            if (confirmedByThisPayment) {
-                jdbc.update("""
-                        INSERT INTO booking_history (booking_id, changed_field, old_value,
-                            new_value, changed_by, notes)
-                        VALUES (?, 'status', 'pending', 'confirmed', ?, ?)
-                        """, bookingId, userId, "Payment recorded in full");
-            }
-        }
-        audit.event(userId, "payment_recorded", "payment", paymentId,
-                Map.of("amount", body.get("amount")));
-        boolean confirmed = confirmedByThisPayment;
-        AfterCommit.run(() -> {
-            // A portal booking paid online already hears "payment confirmed"
-            // from the room-assignment mail — suppress the duplicate.
-            boolean roomAssignmentNotified =
-                    bookingEmails.tryQueuePaidOnlineBookingRoomAssignment(bookingId);
-            if (confirmed && !roomAssignmentNotified) {
-                bookingEmails.tryQueuePaymentConfirmationEmail(bookingId, paymentId);
-            }
-        });
-        return onePayment(paymentId);
+        PermissionGateHelper.check(userId, "payments:create");
+        return payments.recordPayment(userId, body);
     }
 
     @PostMapping("/api/payments")
-    @Transactional
-    public Map<String, Object> createPayment(@RequestBody Map<String, Object> body) {
+    public Payment createPayment(@RequestBody PaymentRequest body) {
         long userId = CurrentUser.require().userId();
-        long bookingId = requiredBookingId(body);
-        long paymentId = insertPayment(userId, bookingId, body);
-        recomputePaymentStatus(bookingId);
-        audit.event(userId, "payment_created", "payment", paymentId,
-                Map.of("booking_id", bookingId, "amount", body.get("amount")));
-        AfterCommit.run(
-                () -> bookingEmails.tryQueuePaidOnlineBookingRoomAssignment(bookingId));
-        return onePayment(paymentId);
+        PermissionGateHelper.check(userId, "payments:create");
+        return payments.createPayment(userId, body);
     }
 
+    /** {@code get_payment} — newest payment row for the booking, or null. */
     @GetMapping("/api/payments/booking/{bookingId}")
-    public List<Map<String, Object>> bookingPayments(@PathVariable long bookingId) {
-        return jdbc.queryForList("SELECT * FROM payments WHERE booking_id = ? "
-                + "ORDER BY created_at", bookingId);
+    public Payment bookingPayment(@PathVariable long bookingId) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        return payments.getPayment(bookingId);
     }
 
     @GetMapping("/api/payments/all-payments/{bookingId}")
     public List<Map<String, Object>> allPayments(@PathVariable long bookingId) {
-        return bookingPayments(bookingId);
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        return payments.getAllPayments(bookingId);
     }
 
     @PatchMapping("/api/payments/{paymentId}")
-    @Transactional
     public Map<String, Object> updatePayment(@PathVariable long paymentId,
-            @RequestBody Map<String, Object> body) {
-        Map<String, Object> payment = onePayment(paymentId);
-        Number bookingIdNum = (Number) payment.get("booking_id");
-        var sets = new LinkedHashMap<String, Object>();
-        for (String column : List.of("amount", "payment_method", "reference_number",
-                "notes", "status")) {
-            if (body.containsKey(column)) {
-                sets.put(column + " = ?", body.get(column));
-            }
-        }
-        if (!sets.isEmpty()) {
-            jdbc.update("UPDATE payments SET " + String.join(", ", sets.keySet())
-                    + " WHERE id = ?", sets.values().toArray());
-            audit.event(CurrentUser.require().userId(), "payment_updated", "payment",
-                    paymentId, null);
-            if (bookingIdNum != null) {
-                long bookingId = bookingIdNum.longValue();
-                recomputePaymentStatus(bookingId);
-                AfterCommit.run(() -> bookingEmails
-                        .tryQueuePaidOnlineBookingRoomAssignment(bookingId));
-            }
-        } else {
-            audit.event(CurrentUser.require().userId(), "payment_updated", "payment",
-                    paymentId, null);
-        }
-        return onePayment(paymentId);
+            @RequestBody UpdatePaymentRequest body) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:update");
+        return payments.updatePayment(userId, paymentId, body);
     }
 
     @DeleteMapping("/api/payments/{paymentId}")
     public Map<String, Object> deletePayment(@PathVariable long paymentId) {
         long userId = CurrentUser.require().userId();
-        onePayment(paymentId);
-        jdbc.update("DELETE FROM payments WHERE id = ?", paymentId);
-        audit.event(userId, "payment_deleted", "payment", paymentId, null);
-        return message("Payment deleted successfully");
+        PermissionGateHelper.check(userId, "payments:delete");
+        return payments.deletePayment(userId, paymentId);
     }
 
     @PostMapping("/api/payments/refund-deposit/{bookingId}")
-    public Map<String, Object> refundDeposit(@PathVariable long bookingId) {
+    public Map<String, Object> refundDeposit(@PathVariable long bookingId,
+            @RequestBody(required = false) Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
-        requireBooking(bookingId);
-        jdbc.update("UPDATE bookings SET deposit_paid = false WHERE id = ?", bookingId);
-        audit.event(userId, "deposit_refunded", "booking", bookingId, null);
-        return message("Deposit refund recorded successfully");
+        PermissionGateHelper.check(userId, "payments:refund");
+        return payments.refundDeposit(userId, bookingId, body);
     }
 
     @PostMapping("/api/payments/revert-deposit-refund/{bookingId}")
     public Map<String, Object> revertDepositRefund(@PathVariable long bookingId) {
         long userId = CurrentUser.require().userId();
-        requireBooking(bookingId);
-        jdbc.update("UPDATE bookings SET deposit_paid = true WHERE id = ?", bookingId);
-        audit.event(userId, "deposit_refund_reverted", "booking", bookingId, null);
-        return message("Deposit refund reverted successfully");
+        PermissionGateHelper.check(userId, "payments:manage");
+        return payments.revertDepositRefund(userId, bookingId);
     }
 
     @GetMapping("/api/payments/workflow-summary/{bookingId}")
-    public Map<String, Object> workflowSummary(@PathVariable long bookingId) {
-        calculate(bookingId);
-        Map<String, Object> summary = jdbc.queryForMap("""
-                SELECT COUNT(*) FILTER (WHERE is_complimentary) AS complimentary_count,
-                       COUNT(*) AS payments_count
-                FROM payments WHERE booking_id = ?
-                """, bookingId);
-        Map<String, Object> body = new LinkedHashMap<>(summary);
-        body.put("booking", requireBooking(bookingId));
-        return body;
+    public PaymentWorkflowSummary workflowSummary(@PathVariable long bookingId) {
+        long userId = CurrentUser.require().userId();
+        PermissionGateHelper.check(userId, "payments:read");
+        return payments.getPaymentWorkflowSummary(bookingId);
     }
 
     @GetMapping("/api/invoices")
@@ -320,30 +185,11 @@ public class BillingController {
         return rows.get(0);
     }
 
-    private Map<String, Object> onePayment(long id) {
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT * FROM payments WHERE id = ?", id);
-        if (rows.isEmpty()) {
-            throw ApiError.notFound("Payment not found");
-        }
-        return rows.get(0);
-    }
-
     static BigDecimal dec(Object value) {
         return value == null ? BigDecimal.ZERO : new BigDecimal(value.toString());
     }
 
     static BigDecimal nz(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    static BigDecimal numD(Object value) {
-        if (value instanceof Number n) {
-            return new BigDecimal(n.toString());
-        }
-        if (value instanceof String s && !s.isBlank()) {
-            return new BigDecimal(s.trim());
-        }
-        return null;
     }
 }

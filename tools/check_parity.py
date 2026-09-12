@@ -25,6 +25,10 @@ def collect_mapped():
                 if not value.startswith("/"):
                     continue
                 mapped.add((method, norm(value)))
+        # WebSocket upgrade endpoints register via addHandler(bean, "/path"),
+        # not @*Mapping — upstream lists them as GET routes.
+        for hm in re.finditer(r'addHandler\([^,]+,\s*"([^"]+)"', src):
+            mapped.add(("GET", norm(hm.group(1))))
     # root-level infra routes live outside /api
     return mapped
 

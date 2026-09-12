@@ -175,7 +175,29 @@ public final class FunnelModels {
             @JsonProperty("walk_in_reserved_rooms") int walkInReservedRooms,
             @JsonProperty("online_booking_enabled") boolean onlineBookingEnabled,
             @JsonProperty("custom_price") BigDecimal customPrice,
+            @JsonProperty("standard_price") BigDecimal standardPrice,
+            @JsonProperty("is_override") boolean isOverride,
             @JsonProperty("online_available_rooms") long onlineAvailableRooms) {
+    }
+
+    /** {@code OnlineInventoryCellUpdate} — one cell of a bulk write. */
+    public record OnlineInventoryCellUpdate(
+            @JsonProperty("room_type_id") long roomTypeId,
+            @JsonProperty("stay_date") String stayDate,
+            @JsonProperty("reset") Boolean reset,
+            @JsonProperty("walk_in_reserved_rooms") Integer walkInReservedRooms,
+            @JsonProperty("online_booking_enabled") Boolean onlineBookingEnabled,
+            @JsonProperty("custom_price") BigDecimal customPrice) {
+    }
+
+    /** {@code BulkUpdateOnlineInventoryRequest}. */
+    public record BulkUpdateOnlineInventoryRequest(
+            @JsonProperty("cells") List<OnlineInventoryCellUpdate> cells) {
+    }
+
+    /** {@code OnlineInventoryAffectedSpan} — one published range per type. */
+    public record OnlineInventoryAffectedSpan(long roomTypeId, LocalDate firstDate,
+            LocalDate lastDate) {
     }
 
     // ------------------------- internals --------------------------------
