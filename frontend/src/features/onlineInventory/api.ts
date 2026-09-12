@@ -1,16 +1,13 @@
 import { api } from '../../api/client';
-import type { OnlineInventoryAllocation, UpdateOnlineInventoryInput } from './types';
+import type { CellUpdateInput, OnlineInventoryAllocation } from './types';
 
-export const getOnlineInventory = (stayDate: string) =>
+export const getOnlineInventoryRange = (from: string, to: string) =>
   api
-    .get('admin/online-inventory', { searchParams: { stay_date: stayDate } })
+    .get('admin/online-inventory', { searchParams: { from, to } })
     .json<OnlineInventoryAllocation[]>();
 
-export const updateOnlineInventory = (
-  roomTypeId: number,
-  stayDate: string,
-  input: UpdateOnlineInventoryInput,
-) =>
+export const bulkUpdateOnlineInventory = (cells: CellUpdateInput[]) =>
   api
-    .put(`admin/online-inventory/${roomTypeId}/${stayDate}`, { json: input })
-    .json<OnlineInventoryAllocation>();
+    .put('admin/online-inventory/bulk', { json: { cells } })
+    .json<OnlineInventoryAllocation[]>();
+

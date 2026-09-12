@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HTTPError } from 'ky';
+import { buildKyHttpError } from './testSupport/httpError';
 
 // Mock the configured ky instance so no real HTTP happens.
 const get = vi.fn();
@@ -22,6 +22,12 @@ vi.mock('./client', async () => {
 import { AuthService } from './auth.service';
 import { APIError } from './client';
 
+/** The two consents the API requires on every registration. */
+const REQUIRED_CONSENTS = [
+  { document: 'terms_of_service' as const, version: '2026-09-13', granted: true, locale: 'en' as const },
+  { document: 'privacy_notice' as const, version: '2026-09-09', granted: true, locale: 'en' as const },
+];
+
 function mockJsonResponse(payload: unknown) {
   return { json: () => Promise.resolve(payload) };
 }
@@ -37,15 +43,10 @@ function mockJsonRejection(error: unknown) {
   return { json: () => Promise.reject(error) };
 }
 
-/** Build a ky HTTPError the way a real failed request would throw it. */
+/** A ky HTTPError as a real failed request throws it: body parsed onto
+ *  `data`, response stream already consumed. See testSupport/httpError.ts. */
 function buildHttpError(status: number, body: unknown, url = 'http://localhost/api/auth/register') {
-  const response = new Response(JSON.stringify(body), {
-    status,
-    statusText: 'Error',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  const request = new Request(url, { method: 'POST' });
-  return new HTTPError(response, request, {} as any);
+  return buildKyHttpError(status, body, url);
 }
 
 describe('AuthService', () => {
@@ -56,6 +57,34 @@ describe('AuthService', () => {
     del.mockReset();
   });
 
+
+  describe('lookupLoginIdentifier', () => {
+    it('posts username to auth/login/lookup and returns exists', async () => {
+      post.mockReturnValue(mockJsonResponse({ exists: true }));
+
+      const result = await AuthService.lookupLoginIdentifier('admin');
+
+      expect(post).toHaveBeenCalledWith('auth/login/lookup', { json: { username: 'admin' } });
+      expect(result).toEqual({ exists: true });
+    });
+
+    it('wraps an HTTPError into an APIError', async () => {
+      post.mockReturnValue(
+        mockJsonRejection(
+          buildHttpError(429, { error: 'Too many login attempts' }, 'http://localhost/api/auth/login/lookup')
+        )
+      );
+
+      try {
+        await AuthService.lookupLoginIdentifier('admin');
+        throw new Error('expected lookup to fail');
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        expect((error as APIError).message).toBe('Too many login attempts');
+      }
+    });
+  });
+
   describe('register', () => {
     it('posts the registration payload as json to auth/register', async () => {
       const data = {
@@ -64,6 +93,8 @@ describe('AuthService', () => {
         first_name: 'New',
         last_name: 'User',
         phone: '0123456789',
+        consents: REQUIRED_CONSENTS,
+        marketing_opt_in: false,
       };
       post.mockReturnValue(Promise.resolve(undefined));
 
@@ -82,6 +113,8 @@ describe('AuthService', () => {
           first_name: 'New',
           last_name: 'User',
           phone: '0123456789',
+          consents: REQUIRED_CONSENTS,
+          marketing_opt_in: false,
         }),
       ).rejects.toMatchObject({
         name: 'APIError',
@@ -100,6 +133,8 @@ describe('AuthService', () => {
           first_name: 'X',
           last_name: 'Y',
           phone: '0123456789',
+          consents: REQUIRED_CONSENTS,
+          marketing_opt_in: false,
         }),
       ).rejects.toMatchObject({ name: 'APIError', message: 'Registration failed' });
     });
@@ -123,6 +158,33 @@ describe('AuthService', () => {
 
       expect(post).toHaveBeenCalledWith('auth/google', { json: { credential: 'google-id-token' } });
       expect(result).toEqual(authResponse);
+    });
+
+    it('sends the registration consents with a first-time Google sign-in', async () => {
+      const authResponse = {
+        access_token: 'tok_abc',
+        user: { id: '1', username: 'guest@example.com', email: 'guest@example.com', is_active: true, created_at: 'x', updated_at: 'x' },
+        roles: ['guest'],
+        permissions: [],
+        route_policies: [],
+        is_first_login: true,
+        profile_complete: false,
+        missing_profile_fields: ['first_name'],
+      };
+      post.mockReturnValue(mockJsonResponse(authResponse));
+
+      await AuthService.loginWithGoogle('google-id-token', {
+        consents: REQUIRED_CONSENTS,
+        marketing_opt_in: false,
+      });
+
+      expect(post).toHaveBeenCalledWith('auth/google', {
+        json: {
+          credential: 'google-id-token',
+          consents: REQUIRED_CONSENTS,
+          marketing_opt_in: false,
+        },
+      });
     });
 
     it('wraps an HTTPError into an APIError with the server message (e.g. 503 when unconfigured)', async () => {

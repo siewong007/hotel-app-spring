@@ -1,0 +1,238 @@
+import React from 'react';
+import {
+  Box,
+  Button,
+  Container,
+  Divider,
+  Link,
+  Paper,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from '../../../router';
+import {
+  HOTEL_LEGAL_IDENTITY,
+  LEGAL_DOCUMENT_PATHS,
+  LEGAL_LOCALES,
+  LEGAL_LOCALE_LABELS,
+  getLegalDocuments,
+  type LegalDocumentId,
+  type LegalLocale,
+} from '../content';
+import { useLegalLocale } from '../LegalLocaleContext';
+import { returnToPreviousPage } from '../../../utils/returnNavigation';
+
+const SIBLING_LINKS: { id: LegalDocumentId; label: Record<LegalLocale, string> }[] = [
+  { id: 'terms_of_service', label: { en: 'Booking Terms', ms: 'Terma Tempahan' } },
+  { id: 'privacy_notice', label: { en: 'Privacy Notice', ms: 'Notis Privasi' } },
+  { id: 'payment_terms', label: { en: 'Payment Terms', ms: 'Terma Pembayaran' } },
+  {
+    id: 'ekyc_biometric',
+    label: { en: 'Identity Verification', ms: 'Pengesahan Identiti' },
+  },
+];
+
+/**
+ * Renders one legal document in the reader's chosen language.
+ *
+ * These pages are public and unauthenticated by design: a guest must be able to
+ * read what they are agreeing to before they have an account, and a consent
+ * checkbox that links somewhere you need to log in to read is not informed
+ * consent.
+ */
+export const LegalDocumentPage: React.FC<{ documentId: LegalDocumentId }> = ({ documentId }) => {
+  const { locale, setLocale } = useLegalLocale();
+  const navigate = useNavigate();
+  // The terms disclose the configured business registration number, which the
+  // boot-time `settings/public` fetch may deliver after this page has already
+  // mounted. Re-resolving on `hotelSettingsChange` keeps a reader from being
+  // left looking at the compiled-in fallback.
+  const [documents, setDocuments] = React.useState(getLegalDocuments);
+  React.useEffect(() => {
+    const refresh = () => setDocuments(getLegalDocuments());
+    window.addEventListener('hotelSettingsChange', refresh);
+    return () => window.removeEventListener('hotelSettingsChange', refresh);
+  }, []);
+  const document = documents[documentId];
+  const backLabel = locale === 'ms' ? 'Kembali' : 'Back';
+
+  if (!document) {
+    return (
+      <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
+        <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, border: 1, borderColor: 'divider' }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+            {HOTEL_LEGAL_IDENTITY.tradingName}
+          </Typography>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mt: 0.5 }}>
+            {locale === 'ms' ? 'Dokumen tidak dijumpai' : 'Document not found'}
+          </Typography>
+          <Typography sx={{ color: 'text.secondary', mt: 1.5 }}>
+            {locale === 'ms'
+              ? 'Dokumen yang anda cari tidak wujud atau telah dialihkan. Dokumen undang-undang kami yang lain tersedia di bawah.'
+              : 'The document you are looking for does not exist or has moved. Our other legal documents are below.'}
+          </Typography>
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2, mt: 3, alignItems: 'center' }}>
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => returnToPreviousPage(navigate)}
+            >
+              {backLabel}
+            </Button>
+            {SIBLING_LINKS.map((entry) => (
+              <Link key={entry.id} href={LEGAL_DOCUMENT_PATHS[entry.id]} variant="body2">
+                {entry.label[locale]}
+              </Link>
+            ))}
+          </Stack>
+        </Paper>
+      </Container>
+    );
+  }
+
+  return (
+    <Container
+      maxWidth="md"
+      sx={{ py: { xs: 3, md: 6 } }}
+      // The language toggle swaps the prose client-side, so `lang` has to live
+      // on the page — a screen reader that keeps announcing Malay pronunciation
+      // over English text is how "accessible" becomes unusable.
+      lang={locale}
+    >
+      <Paper elevation={0} sx={{ p: { xs: 2.5, md: 5 }, border: 1, borderColor: 'divider' }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => returnToPreviousPage(navigate)}
+          sx={{ mb: 2, ml: -1 }}
+        >
+          {backLabel}
+        </Button>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          sx={{ justifyContent: 'space-between', alignItems: { sm: 'flex-start' }, gap: 2 }}
+        >
+          <Box>
+            <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+              {HOTEL_LEGAL_IDENTITY.tradingName}
+            </Typography>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mt: 0.5 }}>
+              {document.title[locale]}
+            </Typography>
+          </Box>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={locale}
+            onChange={(_event, next) => next && setLocale(next as LegalLocale)}
+            aria-label={locale === 'ms' ? 'Bahasa dokumen' : 'Document language'}
+          >
+            {LEGAL_LOCALES.map((option) => (
+              <ToggleButton key={option} value={option} sx={{ px: 1.5 }}>
+                {LEGAL_LOCALE_LABELS[option]}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Stack>
+
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+          {locale === 'ms'
+            ? `Versi ${document.version} · Berkuat kuasa ${document.effectiveDate}`
+            : `Version ${document.version} · Effective ${document.effectiveDate}`}
+        </Typography>
+
+        <Typography sx={{ mt: 3, fontSize: '1.05rem', lineHeight: 1.75 }}>
+          {document.summary[locale]}
+        </Typography>
+
+        {document.sections.length > 1 ? (
+          <Box
+            component="nav"
+            aria-label={locale === 'ms' ? 'Kandungan dokumen' : 'Document contents'}
+            sx={{ mt: 3, p: 2, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              {locale === 'ms' ? 'Kandungan' : 'Contents'}
+            </Typography>
+            <Stack component="ol" sx={{ m: 0, pl: 3, gap: 0.5 }}>
+              {document.sections.map((section) => (
+                <Typography key={section.id} component="li" variant="body2">
+                  <Link href={`#${section.id}`} underline="hover">
+                    {section.heading[locale]}
+                  </Link>
+                </Typography>
+              ))}
+            </Stack>
+          </Box>
+        ) : null}
+
+        <Divider sx={{ my: 4 }} />
+
+        <Stack sx={{ gap: 4 }}>
+          {document.sections.map((section) => (
+            <Box key={section.id} id={section.id} component="section" sx={{ scrollMarginTop: 12 }}>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                {section.heading[locale]}
+              </Typography>
+              {section.body?.map((paragraph, index) => (
+                <Typography key={index} sx={{ mb: 1.5, lineHeight: 1.8 }}>
+                  {paragraph[locale]}
+                </Typography>
+              ))}
+              {section.bullets && section.bullets.length > 0 && (
+                <Stack component="ul" sx={{ m: 0, pl: 3, gap: 1 }}>
+                  {section.bullets.map((bullet, index) => (
+                    <Typography key={index} component="li" sx={{ lineHeight: 1.8 }}>
+                      {bullet[locale]}
+                    </Typography>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+          ))}
+        </Stack>
+
+        <Divider sx={{ my: 4 }} />
+
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          {locale === 'ms' ? 'Hubungi kami' : 'Contact us'}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.9 }}>
+          {HOTEL_LEGAL_IDENTITY.registeredName}
+          <br />
+          {HOTEL_LEGAL_IDENTITY.addressLines.map((line) => (
+            <React.Fragment key={line}>
+              {line}
+              <br />
+            </React.Fragment>
+          ))}
+          <Link href={`mailto:${HOTEL_LEGAL_IDENTITY.email}`}>{HOTEL_LEGAL_IDENTITY.email}</Link>
+          {' · '}
+          <Link href={`tel:${HOTEL_LEGAL_IDENTITY.phone.replace(/\s/g, '')}`}>
+            {HOTEL_LEGAL_IDENTITY.phone}
+          </Link>
+        </Typography>
+
+        <Divider sx={{ my: 4 }} />
+
+        <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => returnToPreviousPage(navigate)}
+            sx={{ ml: -1 }}
+          >
+            {backLabel}
+          </Button>
+          {SIBLING_LINKS.filter((entry) => entry.id !== documentId).map((entry) => (
+            <Link key={entry.id} href={LEGAL_DOCUMENT_PATHS[entry.id]} variant="body2">
+              {entry.label[locale]}
+            </Link>
+          ))}
+        </Stack>
+      </Paper>
+    </Container>
+  );
+};
+
+export default LegalDocumentPage;

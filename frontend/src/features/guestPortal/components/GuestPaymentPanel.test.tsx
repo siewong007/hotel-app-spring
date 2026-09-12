@@ -7,12 +7,15 @@ const mocks = vi.hoisted(() => ({
   portalUploadReceipt: vi.fn(),
   portalCreatePaypalOrder: vi.fn(),
   portalCapturePaypalOrder: vi.fn(),
+  dashboardPaymentConfig: vi.fn(),
   dashboardSubmitBankTransfer: vi.fn(),
   dashboardUploadReceipt: vi.fn(),
   dashboardCreatePaypalOrder: vi.fn(),
   dashboardCapturePaypalOrder: vi.fn(),
   paypalButtons: vi.fn(),
 }));
+
+const paypalScriptState = vi.hoisted(() => ({ isRejected: false }));
 
 vi.mock('../../../api/guestPortal.service', () => ({
   GuestPortalService: {
@@ -26,6 +29,7 @@ vi.mock('../../../api/guestPortal.service', () => ({
 
 vi.mock('../api/guestPortalDashboard.service', () => ({
   GuestPortalDashboardService: {
+    paymentConfig: (...args: unknown[]) => mocks.dashboardPaymentConfig(...args),
     submitBankTransfer: (...args: unknown[]) => mocks.dashboardSubmitBankTransfer(...args),
     uploadPaymentReceipt: (...args: unknown[]) => mocks.dashboardUploadReceipt(...args),
     createPaypalOrder: (...args: unknown[]) => mocks.dashboardCreatePaypalOrder(...args),
@@ -44,6 +48,7 @@ const paypalPropsByRender: Record<string, unknown>[] = [];
 
 vi.mock('@paypal/react-paypal-js', () => ({
   PayPalScriptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  usePayPalScriptReducer: () => [paypalScriptState, vi.fn()],
   PayPalButtons: (props: Record<string, unknown>) => {
     mocks.paypalButtons(props);
     paypalPropsByRender.push(props);
@@ -89,6 +94,11 @@ const baseConfig = {
   paypal_client_id: undefined as string | undefined,
 };
 
+/** Accepts the Payment Terms, which now gate both pay paths. Never pre-ticked. */
+function acceptPaymentTerms() {
+  fireEvent.click(screen.getByRole('checkbox', { name: /Payment Terms/ }));
+}
+
 function configWith(overrides: Partial<typeof baseConfig> = {}) {
   return { ...baseConfig, ...overrides };
 }
@@ -96,13 +106,18 @@ function configWith(overrides: Partial<typeof baseConfig> = {}) {
 describe('GuestPaymentPanel', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
+    paypalScriptState.isRejected = false;
     mocks.paymentConfig.mockResolvedValue(configWith());
+    mocks.dashboardPaymentConfig.mockResolvedValue(configWith());
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    paypalPropsByRender.length = 0;
+    cleanup();
+  });
 
   it('shows a loading state until the payment config resolves', async () => {
-    mocks.paymentConfig.mockReturnValue(new Promise(() => {}));
+    mocks.dashboardPaymentConfig.mockReturnValue(new Promise(() => {}));
 
     render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
 
@@ -110,14 +125,14 @@ describe('GuestPaymentPanel', () => {
   });
 
   it('offers a retry when the payment config fails to load', async () => {
-    mocks.paymentConfig.mockRejectedValueOnce(new Error('network down'));
+    mocks.dashboardPaymentConfig.mockRejectedValueOnce(new Error('network down'));
 
     render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
 
     expect(await screen.findByText('network down')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Offline banking (bank transfer)')).toBeTruthy();
-    expect(mocks.paymentConfig).toHaveBeenCalledTimes(2);
+    expect(mocks.dashboardPaymentConfig).toHaveBeenCalledTimes(2);
   }, 15000);
 
   it('submits a bank-transfer claim against the session booking and reports success', async () => {
@@ -130,10 +145,15 @@ describe('GuestPaymentPanel', () => {
     render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" onPaid={onPaid} />);
 
     fireEvent.click(await screen.findByText('Offline banking (bank transfer)'));
+    acceptPaymentTerms();
     fireEvent.click(screen.getByText("I've paid via bank transfer"));
 
     expect(await screen.findByText('Pending payment confirmation by our team.')).toBeTruthy();
-    expect(mocks.dashboardSubmitBankTransfer).toHaveBeenCalledWith(7, 'portal-token');
+    expect(mocks.dashboardSubmitBankTransfer).toHaveBeenCalledWith(
+      7,
+      [{ document: 'payment_terms', version: '2026-09-09', granted: true, locale: 'en' }],
+      'portal-token',
+    );
     expect(mocks.dashboardUploadReceipt).not.toHaveBeenCalled();
     expect(onPaid).toHaveBeenCalledWith({ payment_id: 42, status: 'pending_verification' });
   });
@@ -153,10 +173,49 @@ describe('GuestPaymentPanel', () => {
       .closest('label')
       ?.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
+    acceptPaymentTerms();
     fireEvent.click(screen.getByText("I've paid via bank transfer"));
 
     await screen.findByText('Pending payment confirmation by our team.');
     expect(mocks.dashboardUploadReceipt).toHaveBeenCalledWith(43, file, 'portal-token');
+  });
+
+  it('will not take a bank transfer until the payment terms are accepted', async () => {
+    render(<GuestPaymentPanel mode="session" bookingId={9} token="portal-token" />);
+
+    fireEvent.click(await screen.findByText('Offline banking (bank transfer)'));
+    // Terms deliberately not accepted.
+    fireEvent.click(screen.getByText("I've paid via bank transfer"));
+
+    expect(mocks.dashboardSubmitBankTransfer).not.toHaveBeenCalled();
+  });
+
+  it('withholds the PayPal buttons until the payment terms are accepted', async () => {
+    mocks.dashboardPaymentConfig.mockResolvedValue(
+      configWith({ paypal_enabled: true, paypal_client_id: 'test-client-id' }),
+    );
+
+    render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
+
+    fireEvent.click(await screen.findByText('PayPal or debit / credit card'));
+
+    // A guest must not reach PayPal's own flow without having seen the terms.
+    expect(screen.queryByTestId('paypal-pay')).toBeNull();
+    expect(screen.getByText(/accept the Payment Terms above/i)).toBeTruthy();
+  });
+
+  it('explains when the PayPal SDK cannot load', async () => {
+    paypalScriptState.isRejected = true;
+    mocks.dashboardPaymentConfig.mockResolvedValue(
+      configWith({ paypal_enabled: true, paypal_client_id: 'test-client-id' }),
+    );
+
+    render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
+
+    fireEvent.click(await screen.findByText('PayPal or debit / credit card'));
+    acceptPaymentTerms();
+
+    expect(await screen.findByText(/PayPal could not load/i)).toBeTruthy();
   });
 
   it('routes pre-arrival (token mode) claims through the unauthenticated service', async () => {
@@ -168,10 +227,14 @@ describe('GuestPaymentPanel', () => {
     render(<GuestPaymentPanel mode="token" token="booking-token" />);
 
     fireEvent.click(await screen.findByText('Offline banking (bank transfer)'));
+    acceptPaymentTerms();
     fireEvent.click(screen.getByText("I've paid via bank transfer"));
 
     expect(await screen.findByText('Payment received — your booking is confirmed.')).toBeTruthy();
-    expect(mocks.portalSubmitBankTransfer).toHaveBeenCalledWith('booking-token');
+    expect(mocks.portalSubmitBankTransfer).toHaveBeenCalledWith(
+      'booking-token',
+      [{ document: 'payment_terms', version: '2026-09-09', granted: true, locale: 'en' }],
+    );
     expect(mocks.dashboardSubmitBankTransfer).not.toHaveBeenCalled();
   });
 
@@ -186,6 +249,7 @@ describe('GuestPaymentPanel', () => {
     render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
 
     fireEvent.click(await screen.findByText('Offline banking (bank transfer)'));
+    acceptPaymentTerms();
     const submit = screen.getByText("I've paid via bank transfer");
     fireEvent.click(submit);
     fireEvent.click(submit);
@@ -197,7 +261,7 @@ describe('GuestPaymentPanel', () => {
   });
 
   it('hides the PayPal option when the hotel has it disabled', async () => {
-    mocks.paymentConfig.mockResolvedValue(configWith({ paypal_enabled: false }));
+    mocks.dashboardPaymentConfig.mockResolvedValue(configWith({ paypal_enabled: false }));
 
     render(<GuestPaymentPanel mode="session" bookingId={7} token="portal-token" />);
 
@@ -206,7 +270,7 @@ describe('GuestPaymentPanel', () => {
   });
 
   it('runs create-order then capture through the dashboard service and confirms', async () => {
-    mocks.paymentConfig.mockResolvedValue(
+    mocks.dashboardPaymentConfig.mockResolvedValue(
       configWith({ paypal_enabled: true, paypal_client_id: 'test-client-id' }),
     );
     mocks.dashboardCreatePaypalOrder.mockResolvedValue({ order_id: 'ORDER-1', payment_id: 60 });
@@ -221,12 +285,17 @@ describe('GuestPaymentPanel', () => {
     );
 
     fireEvent.click(await screen.findByText('PayPal or debit / credit card'));
+    acceptPaymentTerms();
     expect(mocks.paypalButtons).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('paypal-pay'));
 
     await screen.findByText('Payment received — your booking is confirmed.');
-    expect(mocks.dashboardCreatePaypalOrder).toHaveBeenCalledWith(7, 'portal-token');
+    expect(mocks.dashboardCreatePaypalOrder).toHaveBeenCalledWith(
+      7,
+      [{ document: 'payment_terms', version: '2026-09-09', granted: true, locale: 'en' }],
+      'portal-token',
+    );
     expect(mocks.dashboardCapturePaypalOrder).toHaveBeenCalledWith(7, 'ORDER-1', 60, 'portal-token');
     expect(onPaid).toHaveBeenCalledWith({ payment_id: 60, status: 'completed' });
   }, 15000);

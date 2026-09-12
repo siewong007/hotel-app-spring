@@ -21,6 +21,7 @@ import {
   Grid,
   Pagination,
   MenuItem,
+  Skeleton,
   alpha,
 } from '@mui/material';
 import {
@@ -44,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { Guest } from '../../../types';
 import { errorMessage } from '../../../utils';
+import { formatStatusLabel } from '../../../utils/formatters';
 import { DataTable, type ColumnDef } from '../../../components';
 import { useAuth } from '../../../auth/AuthContext';
 import { useSearchParams } from '../../../router';
@@ -154,7 +156,7 @@ const bookingStatusLabel = (status: string) => {
     confirmed: 'Reserved',
     pending: 'Pending',
   };
-  return labels[status] ?? status.replace(/_/g, ' ');
+  return labels[status] ?? formatStatusLabel(status);
 };
 
 const bookingStatusChipColor = (status: string): 'default' | 'success' | 'warning' | 'info' => {
@@ -367,6 +369,26 @@ const GuestConfigurationPage: React.FC = () => {
     },
   ], [formatCurrency]);
 
+  const renderBookingMobileCard = (b: GuestBookingHistoryRow) => (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {b.booking_number || `#${b.id}`}
+        </Typography>
+        <Chip label={bookingStatusLabel(b.status)} color={bookingStatusChipColor(b.status)} size="small" />
+      </Box>
+      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+        {b.room_number ? `${b.room_number}${b.room_type ? ` (${b.room_type})` : ''}` : '—'}
+      </Typography>
+      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+        {formatBookingHistoryDate(getBookingHistoryDateTime(b.check_in_date))} → {formatBookingHistoryDate(getBookingHistoryDateTime(b.check_out_date))} · {b.nights ?? 0} nights
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+        {formatCurrency(Number.parseFloat(String(b.total_amount)) || 0)}
+      </Typography>
+    </Box>
+  );
+
   const loadGuests = useCallback(async () => {
     await Promise.all([
       guestsQuery.refetch(),
@@ -418,7 +440,7 @@ const GuestConfigurationPage: React.FC = () => {
     ];
     const rows = visibleGuests.map((guest) => [
       guest.id,
-      guest.full_name,
+      guest.nick_name,
       guest.email,
       guest.phone,
       guest.ic_number,
@@ -449,7 +471,7 @@ const GuestConfigurationPage: React.FC = () => {
   const guestsByLetter = React.useMemo(() => {
     const groups = new Map<string, Guest[]>();
     visibleGuests.forEach((g) => {
-      const letter = (g.full_name?.[0] || '#').toUpperCase();
+      const letter = (g.nick_name?.[0] || '#').toUpperCase();
       if (!groups.has(letter)) groups.set(letter, []);
       groups.get(letter)!.push(g);
     });
@@ -505,10 +527,16 @@ const GuestConfigurationPage: React.FC = () => {
   const handleEditClick = (guest: Guest) => {
     setEditingGuest(guest);
     setDialogError(null);
-    const [firstName, ...lastNameParts] = guest.full_name.split(' ');
+    // Prefer the legal name the API now returns. Splitting the nickname is a
+    // fallback for rows predating that, where `nick_name` was the only name
+    // held; it must never win over a real first/last, or editing a guest who
+    // booked as "CoolAlex" and checked in as "Aisha Rahman" would show
+    // "CoolAlex" and write it back.
+    const hasLegalName = Boolean(guest.first_name?.trim() && guest.last_name?.trim());
+    const [splitFirstName, ...splitLastNameParts] = guest.nick_name.split(' ');
     setFormData({
-      first_name: firstName || '',
-      last_name: lastNameParts.join(' ') || '',
+      first_name: hasLegalName ? (guest.first_name ?? '') : (splitFirstName || ''),
+      last_name: hasLegalName ? (guest.last_name ?? '') : (splitLastNameParts.join(' ') || ''),
       email: guest.email || '',
       phone: guest.phone || '',
       ic_number: guest.ic_number || '',
@@ -688,7 +716,7 @@ const GuestConfigurationPage: React.FC = () => {
       const tourismLabel = response.guest.tourism_type === 'foreign' ? 'Tourist' : 'Local';
       const bookingLabel = response.source.booking_number || `#${response.source.booking_id}`;
       emitApiNotification({
-        message: `${guest.full_name} marked ${tourismLabel} from booking ${bookingLabel}`,
+        message: `${guest.nick_name} marked ${tourismLabel} from booking ${bookingLabel}`,
         severity: 'success',
       });
       await loadGuests();
@@ -946,8 +974,28 @@ const GuestConfigurationPage: React.FC = () => {
 
           {/* List body */}
           {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress size={28} />
+            <Box>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr auto',
+                    gap: 1.75,
+                    px: '13px',
+                    py: '14px',
+                    alignItems: 'center',
+                    borderBottom: `1px solid ${GUEST_DESIGN.rule}`,
+                  }}
+                >
+                  <Skeleton variant="circular" width={42} height={42} />
+                  <Box>
+                    <Skeleton variant="text" width="42%" sx={{ fontSize: 14 }} />
+                    <Skeleton variant="text" width="62%" sx={{ fontSize: 12 }} />
+                  </Box>
+                  <Skeleton variant="rounded" width={52} height={22} />
+                </Box>
+              ))}
             </Box>
           ) : visibleGuests.length === 0 ? (
             <Box sx={{ p: '48px 20px', textAlign: 'center', color: GUEST_DESIGN.ink3 }}>
@@ -1005,7 +1053,7 @@ const GuestConfigurationPage: React.FC = () => {
                           fontSize: 13,
                           border: '1px solid rgba(0,0,0,0.05)',
                         }}>
-                          {initialsOf(g.full_name)}
+                          {initialsOf(g.nick_name)}
                         </Box>
                         {isMember && (
                           <Box sx={{
@@ -1030,7 +1078,7 @@ const GuestConfigurationPage: React.FC = () => {
                       <Box sx={{ minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4 }}>
                           <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: GUEST_DESIGN.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {g.full_name}
+                            {g.nick_name}
                           </Typography>
                           {isMember && (
                             <Box sx={{
@@ -1171,7 +1219,7 @@ const GuestConfigurationPage: React.FC = () => {
                 : completionPct >= 50
                   ? GUEST_DESIGN.amber
                   : GUEST_DESIGN.rose;
-              const firstName = g.full_name.split(' ')[0];
+              const firstName = g.nick_name.split(' ')[0];
               return (
                 <Box sx={{
                   bgcolor: 'background.paper',
@@ -1206,7 +1254,7 @@ const GuestConfigurationPage: React.FC = () => {
                           fontWeight: 700,
                           fontSize: 18,
                         }}>
-                          {initialsOf(g.full_name)}
+                          {initialsOf(g.nick_name)}
                         </Box>
                         {isMember && (
                           <Box sx={{
@@ -1229,7 +1277,7 @@ const GuestConfigurationPage: React.FC = () => {
                       </Box>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography sx={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
-                          {g.full_name}
+                          {g.nick_name}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.6, flexWrap: 'wrap' }}>
                           {isMember ? (
@@ -1541,7 +1589,7 @@ const GuestConfigurationPage: React.FC = () => {
       <GuestFormDialog
         open={editDialogOpen}
         mode="edit"
-        guestName={editingGuest?.full_name}
+        guestName={editingGuest?.nick_name}
         formData={formData}
         setFormData={setFormData}
         error={dialogError}
@@ -1559,7 +1607,7 @@ const GuestConfigurationPage: React.FC = () => {
         <DialogTitle>Transfer Guest Portal Account</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This reassigns the portal login and its guest-portal access to <strong>{selectedGuest?.full_name}</strong>.
+            This reassigns the portal login and its guest-portal access to <strong>{selectedGuest?.nick_name}</strong>.
           </Alert>
           {portalAccountTransferError && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPortalAccountTransferError(null)}>
@@ -1594,7 +1642,7 @@ const GuestConfigurationPage: React.FC = () => {
         <DialogTitle>Delete Guest</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            Are you sure you want to delete guest <strong>{deletingGuest?.full_name}</strong>?
+            Are you sure you want to delete guest <strong>{deletingGuest?.nick_name}</strong>?
           </Alert>
           <Typography variant="body2" sx={{
             color: "text.secondary"
@@ -1618,16 +1666,12 @@ const GuestConfigurationPage: React.FC = () => {
       </Dialog>
       {/* Booking History Dialog */}
       <Dialog open={bookingsDialogOpen} onClose={() => setBookingsDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Booking History: {viewingGuest?.full_name}</DialogTitle>
+        <DialogTitle>Booking History: {viewingGuest?.nick_name}</DialogTitle>
         <DialogContent>
           {bookingsLoading ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                py: 3
-              }}>
-              <CircularProgress />
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Skeleton variant="text" width={190} height={26} />
+              <Skeleton variant="rounded" height={150} />
             </Box>
           ) : guestBookings.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -1650,6 +1694,7 @@ const GuestConfigurationPage: React.FC = () => {
                     columns={guestBookingColumns}
                     emptyMessage="No checked out bookings found for this guest."
                     getRowId={(row) => String(row.id)}
+                    renderMobileCard={renderBookingMobileCard}
                   />
                 </Box>
               )}
@@ -1668,6 +1713,7 @@ const GuestConfigurationPage: React.FC = () => {
                     columns={guestBookingColumns}
                     emptyMessage="No void bookings found for this guest."
                     getRowId={(row) => String(row.id)}
+                    renderMobileCard={renderBookingMobileCard}
                   />
                 </Box>
               )}
@@ -1686,6 +1732,7 @@ const GuestConfigurationPage: React.FC = () => {
                     columns={guestBookingColumns}
                     emptyMessage="No other bookings found for this guest."
                     getRowId={(row) => String(row.id)}
+                    renderMobileCard={renderBookingMobileCard}
                   />
                 </Box>
               )}
@@ -1700,17 +1747,13 @@ const GuestConfigurationPage: React.FC = () => {
       <Dialog open={creditsDialogOpen} onClose={() => setCreditsDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <GiftIcon color="secondary" />
-          Free Gift Credits: {viewingGuest?.full_name}
+          Free Gift Credits: {viewingGuest?.nick_name}
         </DialogTitle>
         <DialogContent>
           {creditsLoading ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                py: 3
-              }}>
-              <CircularProgress />
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Skeleton variant="text" width={160} height={24} />
+              <Skeleton variant="rounded" height={110} />
             </Box>
           ) : guestCredits ? (
             <Box>

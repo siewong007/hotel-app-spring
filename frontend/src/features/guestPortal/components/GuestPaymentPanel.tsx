@@ -6,8 +6,8 @@
  *    booking-confirmation flow, where the guest has a portal session bearer
  *    token (`token`) and a numeric `bookingId`.
  *  - `mode: 'token'` — the unauthenticated pre-arrival flow
- *    (`/guest-checkin/form?token=...`), where the booking token travels as a
- *    URL path segment on every request and there is no `bookingId`.
+ *    (`/guest-checkin/form`), where the booking token is sent as
+ *    `X-Booking-Access-Token` and there is no `bookingId`.
  *
  * The component fetches the public `/guest-portal/payment-config` once to
  * learn the hotel's bank details and whether PayPal is enabled (and its
@@ -29,11 +29,20 @@ import {
   Typography,
 } from '@mui/material';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import {
+  PayPalScriptProvider,
+  PayPalButtons,
+  usePayPalScriptReducer,
+  type PayPalButtonsComponentProps,
+} from '@paypal/react-paypal-js';
 import { GuestPortalService } from '../../../api/guestPortal.service';
 import { GuestPortalDashboardService } from '../api/guestPortalDashboard.service';
 import { formatCurrency, getCurrentCurrency } from '../../../utils/currency';
 import type { GuestPaymentConfig, PaymentActionResponse } from '../../../types';
+import { ConsentBlock } from '../../legal/components/ConsentBlock';
+import { PAYMENT_CONSENTS, PAYMENT_KEY_POINTS } from '../../legal/content';
+import { useLegalLocale } from '../../legal/LegalLocaleContext';
+import { useConsent } from '../../legal/useConsent';
 
 export interface GuestPaymentPanelProps {
   amount?: string | number | null;
@@ -68,6 +77,22 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function PayPalButtonContent(
+  props: Pick<PayPalButtonsComponentProps, 'createOrder' | 'onApprove' | 'onError' | 'onCancel'>,
+) {
+  const [{ isRejected }] = usePayPalScriptReducer();
+
+  if (isRejected) {
+    return (
+      <Alert severity="error">
+        PayPal could not load. Please disable content blockers and try again.
+      </Alert>
+    );
+  }
+
+  return <PayPalButtons style={{ layout: 'vertical' }} {...props} />;
+}
+
 export function GuestPaymentPanel({
   amount,
   currency,
@@ -88,21 +113,32 @@ export function GuestPaymentPanel({
   const [pendingPaypalPaymentId, setPendingPaypalPaymentId] = useState<number | null>(null);
   const [result, setResult] = useState<PaymentActionResponse | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'paypal' | null>(null);
+  const consent = useConsent(PAYMENT_CONSENTS);
+  const { locale: legalLocale } = useLegalLocale();
   // React state updates are asynchronous, so it cannot by itself prevent two
   // clicks in the same render from creating two payment claims.
   const paymentAttemptInFlight = useRef(false);
 
   const loadConfig = useCallback(async () => {
+    if (!token) {
+      setConfigError('Unable to load payment options right now.');
+      setConfigLoading(false);
+      return;
+    }
     setConfigLoading(true);
     setConfigError(null);
     try {
-      setConfig(await GuestPortalService.paymentConfig());
+      setConfig(
+        mode === 'session'
+          ? await GuestPortalDashboardService.paymentConfig(token)
+          : await GuestPortalService.paymentConfig(token),
+      );
     } catch (error) {
       setConfigError(errorMessage(error, 'Unable to load payment options right now.'));
     } finally {
       setConfigLoading(false);
     }
-  }, []);
+  }, [mode, token]);
 
   useEffect(() => {
     void loadConfig();
@@ -116,10 +152,11 @@ export function GuestPaymentPanel({
     setBankSubmitting(true);
     setBankError(null);
     try {
+      const consents = consent.buildPayload(legalLocale).consents;
       const response =
         mode === 'session'
-          ? await GuestPortalDashboardService.submitBankTransfer(bookingId!, token)
-          : await GuestPortalService.submitBankTransfer(token!);
+          ? await GuestPortalDashboardService.submitBankTransfer(bookingId!, consents, token)
+          : await GuestPortalService.submitBankTransfer(token!, consents);
       if (receiptFile) {
         if (mode === 'session') {
           await GuestPortalDashboardService.uploadPaymentReceipt(response.payment_id, receiptFile, token);
@@ -135,7 +172,7 @@ export function GuestPaymentPanel({
       paymentAttemptInFlight.current = false;
       setBankSubmitting(false);
     }
-  }, [bankSubmitting, result, mode, bookingId, token, onPaid, receiptFile]);
+  }, [bankSubmitting, result, mode, bookingId, token, onPaid, receiptFile, consent, legalLocale]);
 
   const createOrder = useCallback(async (): Promise<string> => {
     if (paymentAttemptInFlight.current) {
@@ -144,10 +181,11 @@ export function GuestPaymentPanel({
     paymentAttemptInFlight.current = true;
     setPaypalError(null);
     try {
+      const consents = consent.buildPayload(legalLocale).consents;
       const response =
         mode === 'session'
-          ? await GuestPortalDashboardService.createPaypalOrder(bookingId!, token)
-          : await GuestPortalService.createPaypalOrder(token!);
+          ? await GuestPortalDashboardService.createPaypalOrder(bookingId!, consents, token)
+          : await GuestPortalService.createPaypalOrder(token!, consents);
       setPendingPaypalPaymentId(response.payment_id);
       return response.order_id;
     } catch (error) {
@@ -155,7 +193,7 @@ export function GuestPaymentPanel({
       paymentAttemptInFlight.current = false;
       throw error;
     }
-  }, [mode, bookingId, token]);
+  }, [mode, bookingId, token, consent, legalLocale]);
 
   const onApprove = useCallback(
     async (data: { orderID: string }): Promise<void> => {
@@ -281,6 +319,20 @@ export function GuestPaymentPanel({
           ) : null}
         </RadioGroup>
       </FormControl>
+
+      {/* The guest is authorising a specific amount here, so the terms that
+          govern it — how each method settles, when the booking is confirmed,
+          and how refunds work — are shown at the point of payment rather than
+          left behind a link they have already passed. */}
+      {paymentMethod ? (
+        <ConsentBlock
+          prompts={PAYMENT_CONSENTS}
+          state={consent}
+          keyPoints={PAYMENT_KEY_POINTS}
+          title={{ en: 'Before you pay', ms: 'Sebelum anda membayar' }}
+        />
+      ) : null}
+
       {paymentMethod === 'bank_transfer' && showBankTransfer ? <Box sx={{ mt: 2 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Bank transfer details
@@ -333,7 +385,7 @@ export function GuestPaymentPanel({
           </Typography>
           <Button
             variant="outlined"
-            disabled={!canPay || bankSubmitting}
+            disabled={!canPay || bankSubmitting || !consent.allRequiredGranted}
             onClick={() => void submitBankTransfer()}
           >
             {bankSubmitting ? <CircularProgress size={20} /> : "I've paid via bank transfer"}
@@ -358,13 +410,18 @@ export function GuestPaymentPanel({
               intent: 'capture',
             }}
           >
-            <PayPalButtons
-              style={{ layout: 'vertical' }}
-              createOrder={createOrder}
-              onApprove={onApprove}
-              onError={onPaypalError}
-              onCancel={onPaypalCancel}
-            />
+            {consent.allRequiredGranted ? (
+              <PayPalButtonContent
+                createOrder={createOrder}
+                onApprove={onApprove}
+                onError={onPaypalError}
+                onCancel={onPaypalCancel}
+              />
+            ) : (
+              <Alert severity="info">
+                Please accept the Payment Terms above to continue to PayPal.
+              </Alert>
+            )}
           </PayPalScriptProvider>
         </Box>
       ) : null}

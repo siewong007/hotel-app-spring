@@ -24,6 +24,8 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import CardGiftcardOutlinedIcon from '@mui/icons-material/CardGiftcardOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import MoreHorizOutlinedIcon from '@mui/icons-material/MoreHorizOutlined';
@@ -33,9 +35,20 @@ import { getValidPortalToken, PORTAL_TOKEN_CHANGE_EVENT } from '../api/portalTok
 import { GuestPortalNotificationBell } from './GuestPortalNotificationBell';
 import { PortalSupportWidget } from './PortalSupportWidget';
 import { getHotelSettings } from '../../../utils/hotelSettings';
+import { useTranslation } from '../../../i18n';
+import { LanguageSwitcher } from '../../../components/common/LanguageSwitcher';
 
 interface GuestPortalShellProps {
   children: ReactNode;
+  /**
+   * Whether to show the account sections (stays, points, offers, support).
+   *
+   * Passed down rather than read from auth context here: RootLayout already
+   * decides who may see this shell, and a visitor booking anonymously has no
+   * account behind any of those sections. Defaults to `true` so the signed-in
+   * portal — every other caller — is unchanged.
+   */
+  showAccountNav?: boolean;
 }
 
 const FOREST = '#082B22';
@@ -44,6 +57,7 @@ const GOLD = '#C7A45B';
 
 const DASHBOARD_LINK = '/guest-portal?section=overview';
 const BOOKING_LINK = '/guest-portal?view=booking';
+const SIGN_IN_LINK = '/login?redirect=%2Fguest-portal%3Fview%3Dbooking';
 const HOTEL_INDEX_LINK = '/salim-inn/index.html?account=guest';
 const MORE_VALUE = 'more';
 
@@ -58,10 +72,12 @@ const primarySections = [
 ] as const;
 
 const secondarySections = [
+  { label: 'Profile', section: 'profile', to: '/guest-portal?section=profile', icon: <PersonOutlineOutlinedIcon /> },
   { label: 'Offers', section: 'offers', to: '/guest-portal?section=offers', icon: <LocalOfferOutlinedIcon /> },
   { label: 'Vouchers', section: 'vouchers', to: '/guest-portal?section=vouchers', icon: <ConfirmationNumberOutlinedIcon /> },
   { label: 'Free nights', section: 'credits', to: '/guest-portal?section=credits', icon: <CardGiftcardOutlinedIcon /> },
   { label: 'Identity', section: 'identity', to: '/guest-portal?section=identity', icon: <BadgeOutlinedIcon /> },
+  { label: 'Security', section: 'security', to: '/guest-portal?section=security', icon: <ShieldOutlinedIcon /> },
   { label: 'Preferences', section: 'preferences', to: '/guest-portal?section=preferences', icon: <TuneOutlinedIcon /> },
 ] as const;
 
@@ -89,6 +105,8 @@ function currentGuestSection(search: string): GuestSection {
       return 'credits';
     case 'identity':
       return 'identity';
+    case 'security':
+      return 'security';
     case 'preferences':
       return 'preferences';
     case 'support':
@@ -99,7 +117,8 @@ function currentGuestSection(search: string): GuestSection {
 }
 
 /** Guest-only navigation that preserves the existing portal route contract. */
-export function GuestPortalShell({ children }: GuestPortalShellProps) {
+export function GuestPortalShell({ children, showAccountNav = true }: GuestPortalShellProps) {
+  const { tOr } = useTranslation('guestPortal');
   const location = useLocation();
   const navigate = useNavigate();
   const hotelName = getHotelSettings().hotel_name;
@@ -143,7 +162,7 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
 
   return (
     <GuestPortalThemeProvider>
-      <Box sx={{ minHeight: '100vh', bgcolor: LINEN, color: 'text.primary', pb: { xs: 10, md: 0 } }}>
+      <Box sx={{ minHeight: '100vh', bgcolor: LINEN, color: 'text.primary', pb: { xs: showAccountNav ? 10 : 2, md: 0 } }}>
         <Box
           component="a"
           href="#guest-portal-main"
@@ -194,7 +213,7 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
                 direction="row"
                 spacing={0.5}
                 sx={{
-                  display: { xs: 'none', md: 'flex' },
+                  display: { xs: 'none', md: showAccountNav ? 'flex' : 'none' },
                   ml: 'auto',
                   minWidth: 0,
                   overflowX: 'auto',
@@ -219,18 +238,36 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
                       '&:focus-visible': { outline: `3px solid ${GOLD}`, outlineOffset: 3 },
                     }}
                   >
-                    {link.label}
+                    {tOr(`nav.${link.section}`, link.label)}
                   </Button>
                 ))}
                 <Button component="a" href={HOTEL_INDEX_LINK} color="inherit" sx={{ flexShrink: 0, minHeight: 44, px: 1.5, color: 'rgba(255,255,255,0.72)', fontSize: '0.8125rem', '&:hover': { bgcolor: 'rgba(255,255,255,0.09)', color: '#FFFFFF', transform: 'translateY(-1px)' } }}>
-                  Explore hotel
+                  {tOr('actions.exploreHotel', 'Explore hotel')}
                 </Button>
               </Stack>
 
-              <Box sx={{ ml: { xs: 'auto', md: 0 }, flexShrink: 0 }}>
-                <GuestPortalNotificationBell
-                  token={portalToken}
-                />
+              <Box sx={{ ml: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <LanguageSwitcher color="inherit" size="small" />
+                {showAccountNav ? (
+                  <GuestPortalNotificationBell token={portalToken} />
+                ) : (
+                  <Button
+                    component={Link}
+                    to={SIGN_IN_LINK}
+                    color="inherit"
+                    sx={{
+                      minHeight: 44,
+                      px: 1.5,
+                      color: 'rgba(255,255,255,0.86)',
+                      fontSize: '0.8125rem',
+                      whiteSpace: 'nowrap',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.09)', color: '#FFFFFF' },
+                      '&:focus-visible': { outline: `3px solid ${GOLD}`, outlineOffset: 3 },
+                    }}
+                  >
+                    {tOr('actions.signIn', 'Sign in')}
+                  </Button>
+                )}
               </Box>
 
               {/* Phones book from the bottom bar's "Book" tab — showing this CTA
@@ -242,7 +279,10 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
                 aria-current={activeSection === 'booking' ? 'page' : undefined}
                 disableElevation
                 sx={{
-                  display: { xs: 'none', md: 'inline-flex' },
+                  display: {
+                    xs: 'none',
+                    md: activeSection === 'booking' && !showAccountNav ? 'none' : 'inline-flex',
+                  },
                   flexShrink: 0,
                   minHeight: 44,
                   px: 2,
@@ -254,7 +294,7 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
                   '&:focus-visible': { outline: '3px solid #FFFFFF', outlineOffset: 3 },
                 }}
               >
-                Book a stay
+                {tOr('actions.bookStay', 'Book a stay')}
               </Button>
             </Toolbar>
           </Container>
@@ -264,22 +304,22 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
           {children}
         </Box>
 
-        <Box component="nav" aria-label="Guest portal mobile navigation" sx={{ display: { xs: 'block', md: 'none' }, position: 'fixed', inset: 'auto 0 0', zIndex: theme => theme.zIndex.appBar, px: 1, pb: 'max(8px, env(safe-area-inset-bottom))', pt: 1, bgcolor: 'rgba(245,240,230,0.94)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(23,33,29,0.12)' }}>
+        <Box component="nav" aria-label="Guest portal mobile navigation" sx={{ display: { xs: showAccountNav ? 'block' : 'none', md: 'none' }, position: 'fixed', inset: 'auto 0 0', zIndex: theme => theme.zIndex.appBar, px: 1, pb: 'max(8px, env(safe-area-inset-bottom))', pt: 1, bgcolor: 'rgba(245,240,230,0.94)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(23,33,29,0.12)' }}>
           <BottomNavigation showLabels value={mobileValue} sx={{ height: 64, borderRadius: 2, bgcolor: '#FFFCF6', boxShadow: '0 8px 24px rgba(24,35,29,0.12)', overflow: 'hidden', '& .MuiBottomNavigationAction-root': { minWidth: 0, maxWidth: 'none', color: '#56625B', transition: 'color 200ms ease, transform 200ms ease', '@media (prefers-reduced-motion: reduce)': { transition: 'none' } }, '& .MuiBottomNavigationAction-root.Mui-selected': { color: FOREST }, '& .MuiBottomNavigationAction-label': { fontSize: '0.625rem', fontWeight: 700, mt: 0.25 }, '& .MuiBottomNavigationAction-label.Mui-selected': { fontSize: '0.625rem' } }}>
             {primarySections.map(link => (
-              <BottomNavigationAction key={link.label} component={Link} to={link.to} value={link.to} label={link.label} icon={link.icon} aria-current={activeSection === link.section ? 'page' : undefined} />
+              <BottomNavigationAction key={link.label} component={Link} to={link.to} value={link.to} label={tOr(`nav.${link.section}`, link.label)} icon={link.icon} aria-current={activeSection === link.section ? 'page' : undefined} />
             ))}
             <BottomNavigationAction
               component={Link}
               to={BOOKING_LINK}
               value={BOOKING_LINK}
-              label="Book"
+              label={tOr('actions.book', 'Book')}
               icon={<CalendarMonthOutlinedIcon />}
               aria-current={activeSection === 'booking' ? 'page' : undefined}
             />
             <BottomNavigationAction
               value={MORE_VALUE}
-              label="More"
+              label={tOr('actions.more', 'More')}
               icon={<MoreHorizOutlinedIcon />}
               aria-haspopup="dialog"
               aria-expanded={moreOpen}
@@ -292,13 +332,13 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
           anchor="bottom"
           open={moreOpen}
           onClose={() => setMoreOpen(false)}
-          sx={{ display: { xs: 'block', md: 'none' } }}
+          sx={{ display: { xs: showAccountNav ? 'block' : 'none', md: 'none' } }}
           slotProps={{ paper: { sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, bgcolor: '#FFFCF6', pb: 'max(8px, env(safe-area-inset-bottom))' } } }}
         >
           <Box sx={{ px: 2, pt: 2, pb: 1 }}>
             <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: 'rgba(23,33,29,0.18)', mx: 'auto', mb: 1.5 }} />
             <Typography variant="overline" sx={{ color: '#8d6b30', fontWeight: 700, letterSpacing: '.12em' }}>
-              More
+              {tOr('actions.more', 'More')}
             </Typography>
           </Box>
           <List sx={{ pb: 1 }}>
@@ -312,7 +352,7 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
                 sx={{ minHeight: 52 }}
               >
                 <ListItemIcon sx={{ minWidth: 40, color: FOREST }}>{link.icon}</ListItemIcon>
-              <ListItemText primary={link.label} slotProps={{
+              <ListItemText primary={tOr(`nav.${link.section}`, link.label)} slotProps={{
                   primary: { sx: { fontWeight: 600 } }
                 }} />
               </ListItemButton>
@@ -320,14 +360,14 @@ export function GuestPortalShell({ children }: GuestPortalShellProps) {
             <Divider component="li" sx={{ my: 1 }} />
             <ListItemButton component="a" href={HOTEL_INDEX_LINK} sx={{ minHeight: 52 }}>
               <ListItemIcon sx={{ minWidth: 40, color: FOREST }}><OpenInNewOutlinedIcon /></ListItemIcon>
-              <ListItemText primary="Explore hotel" slotProps={{
+              <ListItemText primary={tOr('actions.exploreHotel', 'Explore hotel')} slotProps={{
                 primary: { sx: { fontWeight: 600 } }
               }} />
             </ListItemButton>
           </List>
         </Drawer>
 
-        {portalToken ? (
+        {portalToken && showAccountNav ? (
           <PortalSupportWidget token={portalToken} open={supportOpen} onOpenChange={handleSupportOpenChange} />
         ) : null}
       </Box>

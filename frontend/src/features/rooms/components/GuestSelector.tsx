@@ -12,6 +12,7 @@ import {
   createFilterOptions,
   CircularProgress,
   FormControl,
+  FormHelperText,
   InputLabel,
   Select,
   MenuItem,
@@ -41,7 +42,7 @@ export interface NewGuestForm {
 
 export interface GuestWithCredits {
   id: number;
-  full_name: string;
+  nick_name: string;
   email: string;
   total_complimentary_credits: number;
   credits_by_room_type: {
@@ -83,7 +84,9 @@ export const emptyNewGuestForm: NewGuestForm = {
   phone: '',
   nationality: '',
   ic_number: '',
-  tourism_type: 'local',
+  // Deliberately unset: tourism type drives tourism tax, so staff pick it
+  // explicitly rather than inheriting a silent 'local' default.
+  tourism_type: undefined,
   guest_type: 'non_member',
   company_name: '',
   address_line1: '',
@@ -115,7 +118,7 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
         stringify: (option) =>
           [
             option.id,
-            option.full_name,
+            option.nick_name,
             option.company_name,
             option.email,
             option.phone,
@@ -157,8 +160,8 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
               options={guestsWithCredits}
               getOptionLabel={(option) => {
                 return option.email
-                  ? `${option.full_name} - ${option.email} (${option.total_complimentary_credits} credits)`
-                  : `${option.full_name} (${option.total_complimentary_credits} credits)`;
+                  ? `${option.nick_name} - ${option.email} (${option.total_complimentary_credits} credits)`
+                  : `${option.nick_name} (${option.total_complimentary_credits} credits)`;
               }}
               renderOption={(props, option) => {
                 const { key, ...otherProps } = props;
@@ -167,7 +170,7 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
                     <Box sx={{ width: '100%' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box>
-                          <Typography variant="body1">{option.full_name}</Typography>
+                          <Typography variant="body1">{option.nick_name}</Typography>
                           {option.email && <Typography variant="caption" sx={{
                             color: "text.secondary"
                           }}>{option.email}</Typography>}
@@ -240,7 +243,7 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
             options={guests}
             filterOptions={guestFilterOptions}
             getOptionLabel={(option) => {
-              const parts = [option.full_name];
+              const parts = [option.nick_name];
               if (option.company_name) parts.push(`(${option.company_name})`);
               if (option.email) parts.push(`- ${option.email}`);
               return parts.join(' ');
@@ -251,7 +254,7 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
                 <Box component="li" key={option.id || key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="body2">
-                      {option.full_name}
+                      {option.nick_name}
                       {option.company_name && (
                         <Typography
                           component="span"
@@ -291,7 +294,7 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
           {selectedGuest?.guest_type === 'member' && (
             <Alert severity="success" sx={{ mt: 1 }} icon={<GiftIcon />}>
               <Typography variant="body2">
-                <strong>{selectedGuest.full_name}</strong> is a Member — Room card deposit is <strong>waived</strong>
+                <strong>{selectedGuest.nick_name}</strong> is a Member — Room card deposit is <strong>waived</strong>
               </Typography>
             </Alert>
           )}
@@ -312,8 +315,8 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
-              required
               label="Last Name"
+              helperText="Optional — a single name is enough for a fast booking"
               value={newGuestForm.last_name}
               onChange={(e) => onNewGuestFormChange({ ...newGuestForm, last_name: e.target.value })}
             />
@@ -363,10 +366,10 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth>
+            <FormControl fullWidth required error={!newGuestForm.tourism_type}>
               <InputLabel>Tourism Type</InputLabel>
               <Select
-                value={newGuestForm.tourism_type || 'local'}
+                value={newGuestForm.tourism_type ?? ''}
                 label="Tourism Type"
                 onChange={(e) => onNewGuestFormChange({ ...newGuestForm, tourism_type: e.target.value as TourismType || undefined })}
               >
@@ -387,6 +390,11 @@ const GuestSelector: React.FC<GuestSelectorProps> = ({
                   </Box>
                 </MenuItem>
               </Select>
+              <FormHelperText>
+                {newGuestForm.tourism_type
+                  ? 'Determines whether tourism tax applies'
+                  : 'Required — determines whether tourism tax applies'}
+              </FormHelperText>
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>

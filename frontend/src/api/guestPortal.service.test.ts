@@ -28,33 +28,35 @@ describe('GuestPortalService', () => {
   });
 
   describe('verify', () => {
-    it('posts booking_number and email as json to guest-portal/verify', async () => {
+    it('posts booking_number and name as json to guest-portal/verify', async () => {
       const response = { token: 'tok', expires_at: '2026-07-27T00:00:00Z', booking_id: '5' };
       post.mockReturnValue(mockJsonResponse(response));
 
-      const result = await GuestPortalService.verify({ booking_number: 'BK-1', email: 'guest@example.com' });
+      const result = await GuestPortalService.verify({ booking_number: 'BK-1', name: 'John Wong' });
 
       expect(post).toHaveBeenCalledWith('guest-portal/verify', {
-        json: { booking_number: 'BK-1', email: 'guest@example.com' },
+        json: { booking_number: 'BK-1', name: 'John Wong' },
       });
       expect(result).toEqual(response);
     });
   });
 
   describe('getBooking', () => {
-    it('calls GET guest-portal/booking/<token>', async () => {
+    it('calls GET guest-portal/booking with the token in a header, not the path', async () => {
       const response = { booking: { id: 1 }, guest: { id: 2 } };
       get.mockReturnValue(mockJsonResponse(response));
 
       const result = await GuestPortalService.getBooking('tok_abc');
 
-      expect(get).toHaveBeenCalledWith('guest-portal/booking/tok_abc');
+      expect(get).toHaveBeenCalledWith('guest-portal/booking', {
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
+      });
       expect(result).toEqual(response);
     });
   });
 
   describe('submitPreCheckin', () => {
-    it('posts the pre-checkin request as json to guest-portal/pre-checkin/<token>', async () => {
+    it('posts pre-checkin json with the token in a header, not the path', async () => {
       const request: PreCheckInUpdateRequest = {
         guest_update: { first_name: 'Jane' },
         special_requests: 'Late checkout',
@@ -64,37 +66,48 @@ describe('GuestPortalService', () => {
 
       const result = await GuestPortalService.submitPreCheckin('tok_abc', request);
 
-      expect(post).toHaveBeenCalledWith('guest-portal/pre-checkin/tok_abc', { json: request });
+      expect(post).toHaveBeenCalledWith('guest-portal/pre-checkin', {
+        json: request,
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
+      });
       expect(result).toEqual(response);
     });
   });
 
   describe('paymentConfig', () => {
-    it('calls GET guest-portal/payment-config', async () => {
+    it('calls GET guest-portal/payment-config with the booking token header', async () => {
       const config = { paypal_enabled: true, paypal_client_id: 'abc', bank_details: { bank_name: null, account_name: null, account_number: null } };
       get.mockReturnValue(mockJsonResponse(config));
 
-      const result = await GuestPortalService.paymentConfig();
+      const result = await GuestPortalService.paymentConfig('tok_abc');
 
-      expect(get).toHaveBeenCalledWith('guest-portal/payment-config');
+      expect(get).toHaveBeenCalledWith('guest-portal/payment-config', {
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
+      });
       expect(result).toEqual(config);
     });
   });
 
   describe('submitBankTransfer', () => {
-    it('posts to guest-portal/booking/<token>/payments/bank-transfer', async () => {
+    it('posts bank-transfer with the consents body and token in a header, not the path', async () => {
       const response = { payment_id: 9, status: 'pending', booking_status: 'confirmed' };
+      const consents = [
+        { document: 'payment_terms' as const, version: '2026-09-09', granted: true, locale: 'en' as const },
+      ];
       post.mockReturnValue(mockJsonResponse(response));
 
-      const result = await GuestPortalService.submitBankTransfer('tok_abc');
+      const result = await GuestPortalService.submitBankTransfer('tok_abc', consents);
 
-      expect(post).toHaveBeenCalledWith('guest-portal/booking/tok_abc/payments/bank-transfer');
+      expect(post).toHaveBeenCalledWith('guest-portal/booking/payments/bank-transfer', {
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
+        json: { consents },
+      });
       expect(result).toEqual(response);
     });
   });
 
   describe('uploadPaymentReceipt', () => {
-    it('posts a FormData body containing the file to guest-portal/booking/<token>/payments/<id>/receipt', async () => {
+    it('posts a FormData receipt with the token in a header, not the path', async () => {
       post.mockReturnValue(Promise.resolve(undefined));
       const file = new File(['bytes'], 'receipt.png', { type: 'image/png' });
 
@@ -102,33 +115,41 @@ describe('GuestPortalService', () => {
 
       expect(post).toHaveBeenCalledTimes(1);
       const [url, options] = post.mock.calls[0];
-      expect(url).toBe('guest-portal/booking/tok_abc/payments/42/receipt');
+      expect(url).toBe('guest-portal/booking/payments/42/receipt');
       expect(options.body).toBeInstanceOf(FormData);
       expect(options.body.get('file')).toBe(file);
+      expect(options.headers).toEqual({ 'X-Booking-Access-Token': 'tok_abc' });
     });
   });
 
   describe('createPaypalOrder', () => {
-    it('posts to guest-portal/booking/<token>/payments/paypal/create-order', async () => {
+    it('posts paypal create-order with the consents body and token in a header, not the path', async () => {
       const response = { order_id: 'ord_1', payment_id: 9 };
+      const consents = [
+        { document: 'payment_terms' as const, version: '2026-09-09', granted: true, locale: 'en' as const },
+      ];
       post.mockReturnValue(mockJsonResponse(response));
 
-      const result = await GuestPortalService.createPaypalOrder('tok_abc');
+      const result = await GuestPortalService.createPaypalOrder('tok_abc', consents);
 
-      expect(post).toHaveBeenCalledWith('guest-portal/booking/tok_abc/payments/paypal/create-order');
+      expect(post).toHaveBeenCalledWith('guest-portal/booking/payments/paypal/create-order', {
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
+        json: { consents },
+      });
       expect(result).toEqual(response);
     });
   });
 
   describe('capturePaypalOrder', () => {
-    it('posts order_id and payment_id as json to guest-portal/booking/<token>/payments/paypal/capture', async () => {
+    it('posts paypal capture with the token in a header, not the path', async () => {
       const response = { payment_id: 9, status: 'completed', booking_status: 'confirmed' };
       post.mockReturnValue(mockJsonResponse(response));
 
       const result = await GuestPortalService.capturePaypalOrder('tok_abc', 'ord_1', 9);
 
-      expect(post).toHaveBeenCalledWith('guest-portal/booking/tok_abc/payments/paypal/capture', {
+      expect(post).toHaveBeenCalledWith('guest-portal/booking/payments/paypal/capture', {
         json: { order_id: 'ord_1', payment_id: 9 },
+        headers: { 'X-Booking-Access-Token': 'tok_abc' },
       });
       expect(result).toEqual(response);
     });

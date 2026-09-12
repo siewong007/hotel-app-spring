@@ -4,6 +4,9 @@ import { Alert, Box, Button, Container, CircularProgress, Fade, Paper, Stack, Ty
 import { usePortalSessionBootstrap } from '../hooks/usePortalSessionBootstrap';
 import { BookingsSection, CreditsSection, EmbeddedSection, OverviewSection, PointsHistorySection } from './dashboard/PortalDashboardSections';
 import { IdentitySection } from './dashboard/IdentitySection';
+import { ProfileSection } from './dashboard/ProfileSection';
+import { SecuritySection } from './dashboard/SecuritySection';
+import { DevicesSection } from './dashboard/DevicesSection';
 import { parsePortalSection, type PortalSection } from './dashboard/dashboardUtils';
 
 // Navigation lives in GuestPortalShell (top bar on web, bottom bar on phones).
@@ -16,6 +19,8 @@ const SECTION_TITLES: Record<PortalSection, string> = {
   vouchers: 'Vouchers',
   credits: 'Complimentary nights',
   identity: 'Identity verification',
+  profile: 'My profile',
+  security: 'Sign-in & security',
   preferences: 'Preferences',
   support: 'My stay',
 };
@@ -39,7 +44,7 @@ export const PortalDashboardPage: React.FC = () => {
   }
 
   if (needsLogin) {
-    return <Navigate to="/login?account=guest" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (!token) {
@@ -120,6 +125,16 @@ const AuthenticatedDashboard: React.FC<{
           {displaySection === 'points-history' ? <PointsHistorySection token={token} /> : null}
           {displaySection === 'credits' ? <CreditsSection token={token} /> : null}
           {displaySection === 'identity' ? <IdentitySection token={token} /> : null}
+          {displaySection === 'profile' ? <ProfileSection token={token} /> : null}
+          {/* No token: this section acts on the guest's ACCOUNT credentials,
+              which authenticate with the ordinary account session rather than
+              the portal bearer token. See SecuritySection. */}
+          {displaySection === 'security' ? (
+            <Stack spacing={3}>
+              <SecuritySection />
+              <DevicesSection />
+            </Stack>
+          ) : null}
           {['offers', 'vouchers', 'preferences'].includes(displaySection) ? <EmbeddedSection section={displaySection} token={token} /> : null}
         </Box></Fade>
       </Paper>

@@ -18,6 +18,7 @@
  * known risk.
  */
 import { api } from '../../../api/client';
+import type { ConsentAcceptance } from '../../legal/useConsent';
 import { getPortalToken } from './portalTokenStore';
 import type {
   GuestPortalBenefitsResponse,
@@ -29,8 +30,10 @@ import type {
   GuestPortalLoginResponse,
   GuestPortalMeResponse,
   GuestPortalMembershipResponse,
+  GuestPortalProfileUpdate,
   GuestPortalPagedResponse,
   GuestPortalTransaction,
+  GuestPaymentConfig,
   PaymentActionResponse,
   PaypalCreateOrderResponse,
 } from '../../../types';
@@ -77,6 +80,26 @@ export class GuestPortalDashboardService {
       .json();
   }
 
+  /**
+   * Saves the guest's own contact details and returns the refreshed `/me`
+   * payload, so the caller updates `profile_complete` from the server's verdict
+   * rather than guessing it from the fields it just sent.
+   */
+  static async updateProfile(
+    input: GuestPortalProfileUpdate,
+    token?: string
+  ): Promise<GuestPortalMeResponse> {
+    return await api
+      .patch('guest-portal/me/profile', { headers: authHeaders(token), json: input })
+      .json();
+  }
+
+  static async paymentConfig(token?: string): Promise<GuestPaymentConfig> {
+    return await api
+      .get('guest-portal/payment-config', { headers: authHeaders(token) })
+      .json();
+  }
+
   static async bookings(
     params?: PortalPageParams,
     token?: string
@@ -101,11 +124,22 @@ export class GuestPortalDashboardService {
       .json();
   }
 
-  static async cancelBooking(bookingId: number, reason: string, token?: string): Promise<void> {
-    await api.post(`guest-portal/me/bookings/${bookingId}/cancel`, {
-      headers: authHeaders(token),
-      json: { reason: reason.trim() || null },
-    });
+  /**
+   * Cancels an unpaid booking immediately, or files a staff-review request on
+   * a paid one. `cancellation_requested` in the response distinguishes the
+   * two — a paid booking is never voided by this call.
+   */
+  static async cancelBooking(
+    bookingId: number,
+    reason: string,
+    token?: string
+  ): Promise<{ cancellation_requested?: boolean; message?: string }> {
+    return await api
+      .post(`guest-portal/me/bookings/${bookingId}/cancel`, {
+        headers: authHeaders(token),
+        json: { reason: reason.trim() || null },
+      })
+      .json();
   }
 
   static async membership(token?: string): Promise<GuestPortalMembershipResponse> {
@@ -128,12 +162,13 @@ export class GuestPortalDashboardService {
 
   static async submitBankTransfer(
     bookingId: number,
+    consents: ConsentAcceptance[],
     token?: string
   ): Promise<PaymentActionResponse> {
     return await api
       .post('guest-portal/me/payments/bank-transfer', {
         headers: authHeaders(token),
-        json: { booking_id: bookingId },
+        json: { booking_id: bookingId, consents },
       })
       .json();
   }
@@ -153,12 +188,13 @@ export class GuestPortalDashboardService {
 
   static async createPaypalOrder(
     bookingId: number,
+    consents: ConsentAcceptance[],
     token?: string
   ): Promise<PaypalCreateOrderResponse> {
     return await api
       .post('guest-portal/me/payments/paypal/create-order', {
         headers: authHeaders(token),
-        json: { booking_id: bookingId },
+        json: { booking_id: bookingId, consents },
       })
       .json();
   }

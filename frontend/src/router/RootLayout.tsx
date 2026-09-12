@@ -2,6 +2,8 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { AppBar, Box, Container } from '@mui/material';
 import { Navigate, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useAuth } from '../auth/AuthContext';
+import { isPublicGuestPath } from '../guest/guestDocumentPaths';
+import { CrossAppRedirect } from '../guest/CrossAppRedirect';
 import { NavigationTabs } from '../components/layout/NavigationTabs';
 import { LoadingFallback, MinimalLoadingFallback } from './RouteFallbacks';
 import { FirstLoginPasskeyPrompt } from '../navigation/routeRegistry';
@@ -20,12 +22,17 @@ export const RootLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
+  const searchStr = location.searchStr ? `?${location.searchStr.replace(/^\?+/, '')}` : '';
+  const publicGuestPath = isPublicGuestPath(pathname, searchStr);
   const isGuestPortal = pathname === '/guest-portal';
+  // Booking is the one portal view open to visitors with no account: they book
+  // anonymously and pay through a booking-scoped link. Every other section
+  // reads account-owned data and stays gated below.
+  const isPublicBooking =
+    isGuestPortal && (location.search as { view?: string }).view === 'booking';
   const isAdminPortal = pathname === '/admin-portal';
   const isOffersPage = pathname === '/offers' || pathname.startsWith('/offers/');
-  const account = (location.search as { account?: string }).account;
-  const isGuestLogin = pathname === '/login' && account === 'guest';
-  const isGuestExperience = isGuestPortal || isOffersPage || pathname === '/register' || isGuestLogin || pathname === '/complete-profile';
+  const isGuestExperience = isGuestPortal || isOffersPage || pathname === '/register' || pathname === '/login' || pathname === '/complete-profile';
   const isGuestModelHome = isGuestPortal;
   const isTimelinePage = pathname.startsWith('/timeline');
   const boardSkinActive =
@@ -76,21 +83,24 @@ export const RootLayout: React.FC = () => {
   // Portal pages share the Salim Inn guest experience instead of inheriting
   // the operational staff navigation.
   if (isGuestPortal) {
-    if (isLoading) return <LoadingFallback />;
+    if (isLoading && !isPublicBooking) return <LoadingFallback />;
 
     // A portal bearer token is only a short-lived companion to a signed-in
     // guest account. Do not render portal routes while the account state is
-    // unknown, signed out, or belongs to an operational user.
-    if (!isAuthenticated) {
-      return <Navigate to="/login" search={{ account: 'guest' } as any} replace />;
+    // unknown, signed out, or belongs to an operational user — except the
+    // booking view, which is reachable with no account at all.
+    if (!isAuthenticated && !isPublicBooking && !isLoading) {
+      // Typed-route shim contract — see router/compat.tsx.
+      return <CrossAppRedirect to="/login" />;
     }
 
-    if (user?.user_type !== 'guest') {
+    // Only meaningful once signed in; an anonymous booker has no `user`.
+    if (isAuthenticated && user?.user_type !== 'guest') {
       return <Navigate to="/" replace />;
     }
 
     return (
-      <GuestPortalShell>
+      <GuestPortalShell showAccountNav={isAuthenticated}>
         <ErrorBoundary title="Guest Experience Error">
           <Suspense fallback={<LoadingFallback />}>
             <Outlet />
@@ -102,12 +112,23 @@ export const RootLayout: React.FC = () => {
 
   if (isAdminPortal) {
     if (isLoading) return <LoadingFallback />;
-    if (!isAuthenticated) return <Navigate to="/login" search={{ account: 'admin' } as any} replace />;
-    if (user?.user_type === 'guest') return <Navigate to={'/guest-portal' as any} replace />;
+    // Typed-route shim contract — see router/compat.tsx.
+    if (!isAuthenticated) return <CrossAppRedirect to="/login" />;
+    if (user?.user_type === 'guest') return <CrossAppRedirect to="/guest-portal" />;
   }
 
   // Public consumer pages and the signed-in guest's model home remain outside
   // the operational staff shell.
+  if (publicGuestPath) {
+    return (
+      <ErrorBoundary title="Guest Experience Error">
+        <Suspense fallback={null}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   if (isOffersPage || isGuestModelHome) {
     return (
       <ErrorBoundary title="Guest Experience Error">

@@ -5,7 +5,13 @@
 
 /** Guest-safe profile returned by the guest portal login/me endpoints. */
 export interface GuestPortalGuest {
-  full_name: string;
+  nick_name: string;
+  /**
+   * Split name parts. The portal's profile form edits these; `nick_name` is the
+   * display name the backend derives from them and is never sent back.
+   */
+  first_name?: string | null;
+  last_name?: string | null;
   title?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -27,6 +33,81 @@ export interface GuestPortalLoginResponse {
   guest: GuestPortalGuest;
 }
 
+/** One consent decision, in the shape `useConsent().buildPayload` produces. */
+export interface ConsentAcceptancePayload {
+  document: string;
+  version: string;
+  granted: boolean;
+  locale: string;
+}
+
+/**
+ * Body for `POST /guest-portal/claim-account` — creating a login for the guest
+ * a booking access token already authenticates.
+ *
+ * Distinct from `/auth/register`, which always creates a NEW guest profile and
+ * refuses when the name is taken.
+ *
+ * `booking_number` and `guest_name` are sent from the loaded booking rather
+ * than re-typed. They are not a second factor — the same token authorizes
+ * `GET /guest-portal/booking`, which returns both — so asking the guest to copy
+ * them off the screen would be ceremony. What actually bounds a leaked link is
+ * that the account cannot password-login until its email is verified, and that
+ * a guest who already has a login gets a conflict rather than a takeover.
+ */
+export interface GuestPortalClaimAccountRequest {
+  booking_number: string;
+  guest_name: string;
+  username: string;
+  password: string;
+  email?: string;
+  consents: ConsentAcceptancePayload[];
+  marketing_opt_in: boolean;
+}
+
+export interface GuestPortalClaimAccountResponse {
+  /** Portal session for the new account — eKYC continues in the same visit. */
+  session: GuestPortalLoginResponse;
+  username: string;
+  /**
+   * True when a verification mail went out. Password login stays blocked until
+   * the guest clicks it; the session above works regardless, so pre-check-in
+   * and identity verification are not held up by an email round-trip.
+   */
+  email_verification_required: boolean;
+}
+
+/**
+ * Result of `POST /guest-portal/auto-checkin` — the guest checking themselves
+ * in on approved eKYC (`AutoCheckinResponse` in
+ * `hotel-app-be/src/models/booking.rs`).
+ */
+export interface GuestPortalAutoCheckinResponse {
+  success: boolean;
+  booking_id: number;
+  room_number: string;
+  digital_key_sent: boolean;
+  checked_in_at: string;
+  ekyc_summary: GuestEkycStatusSummary;
+  message: string;
+}
+
+/**
+ * eKYC/auto-check-in eligibility carried on every portal booking response
+ * (`GuestEkycStatusSummary` in `hotel-app-be/src/models/guest.rs`).
+ * `auto_checkin_block_reason` is the guest-facing explanation of why check-in
+ * is not open yet — booking status, stay dates, room readiness, or eKYC state.
+ */
+export interface GuestEkycStatusSummary {
+  guest_id: number;
+  ekyc_verification_id?: number | null;
+  status: string;
+  self_checkin_enabled: boolean;
+  verified_at?: string | null;
+  can_auto_checkin: boolean;
+  auto_checkin_block_reason?: string | null;
+}
+
 export interface GuestPortalMeResponse {
   guest: GuestPortalGuest;
   /**
@@ -36,6 +117,27 @@ export interface GuestPortalMeResponse {
    */
   profile_complete?: boolean;
   missing_profile_fields?: string[];
+}
+
+/**
+ * Body for `PATCH /guest-portal/me/profile`.
+ *
+ * `email` and `ic_number` are absent by design: email is the login identifier,
+ * and the IC number is identity data the hotel verifies through eKYC. Both are
+ * shown read-only in the portal.
+ */
+export interface GuestPortalProfileUpdate {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  alt_phone?: string | null;
+  title?: string | null;
+  nationality?: string | null;
+  address_line1?: string | null;
+  city?: string | null;
+  state_province?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
 }
 
 export interface GuestPortalBookingSummary {
@@ -51,6 +153,8 @@ export interface GuestPortalBookingSummary {
   completed_payment_amount?: string | number | null;
   can_cancel: boolean;
   cancellation_unavailable_reason?: string | null;
+  /** A staff-review cancellation request is already open for this booking. */
+  cancellation_pending?: boolean;
   /** Reason from the most recently rejected payment claim, if the booking is still awaiting payment. */
   payment_rejection_reason?: string | null;
   receipt_request_payment_id?: number | null;

@@ -26,6 +26,7 @@ import NotesSection from './components/NotesSection';
 import SectionHeader from './components/SectionHeader';
 
 import type { BookingType, BookingMode, ReservationType } from './bookingTypes';
+import { errorMessage } from '../../../../utils/errorMessage';
 export type { BookingType, BookingMode };
 
 interface UnifiedBookingModalProps {
@@ -38,7 +39,7 @@ interface UnifiedBookingModalProps {
   initialBookingType?: BookingType;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
-  onBookingCreated?: (booking: Booking, guest: Guest) => void; // For direct booking to open enhanced check-in
+  onBookingCreated?: (booking: Booking & { room_number?: string }, guest: Guest) => void; // For direct booking to open enhanced check-in
   onRefreshData: () => Promise<void>;
 }
 
@@ -386,14 +387,24 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
 
       // Create new guest if needed
       if (isCreatingNewGuest) {
-        if (!newGuestForm.first_name || !newGuestForm.last_name) {
-          reportError('Please fill in required guest fields');
+        // Fast booking: a name is all that is strictly needed. Last name, email,
+        // phone and IC are optional and collected at check-in.
+        if (!newGuestForm.first_name.trim()) {
+          reportError('Please enter the guest\'s name');
+          setProcessing(false);
+          return;
+        }
+
+        // Tourism type is never defaulted — it decides whether tourism tax is
+        // charged, so it must be an explicit staff choice.
+        if (!newGuestForm.tourism_type) {
+          reportError('Please select the tourism type — it determines whether tourism tax applies');
           setProcessing(false);
           return;
         }
 
         notifyIfGuestContactIncomplete(newGuestForm);
-        const tourismType = newGuestForm.tourism_type || 'local';
+        const tourismType = newGuestForm.tourism_type;
 
         if (newGuestForm.email && newGuestForm.email.trim() && !isValidEmail(newGuestForm.email)) {
           reportError('Please enter a valid email address');
@@ -401,11 +412,15 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
           return;
         }
 
-        // Check for duplicate guest name
-        const modalFullName = `${newGuestForm.first_name.trim()} ${newGuestForm.last_name.trim()}`.toLowerCase();
-        const existingGuestByName = guests.find(g => g.full_name.toLowerCase().trim() === modalFullName);
+        // Check for duplicate guest name. Built the same way the backend builds
+        // `full_name` (join then trim), so a single-name guest matches correctly.
+        const modalDisplayName = [newGuestForm.first_name.trim(), newGuestForm.last_name.trim()]
+          .filter(Boolean)
+          .join(' ');
+        const modalFullName = modalDisplayName.toLowerCase();
+        const existingGuestByName = guests.find(g => g.nick_name.toLowerCase().trim() === modalFullName);
         if (existingGuestByName) {
-          reportError(`A guest with the name '${newGuestForm.first_name.trim()} ${newGuestForm.last_name.trim()}' already exists. Please select the existing guest instead.`);
+          reportError(`A guest with the name '${modalDisplayName}' already exists. Please select the existing guest instead.`);
           setProcessing(false);
           return;
         }
@@ -499,17 +514,22 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
         source: 'walk_in',
       };
 
-      // Add room_number to booking for EnhancedCheckInModal display
-      (bookingForCheckIn as any).room_number = room.room_number;
+      // Add room_number to booking for EnhancedCheckInModal display. Booking
+      // itself has no room column (rooms join by room_id), so the hand-off
+      // type carries it as an explicit optional overlay.
+      const bookingWithRoom: Booking & { room_number?: string } = {
+        ...bookingForCheckIn,
+        room_number: room.room_number,
+      };
 
       // Hand off to EnhancedCheckInModal
       if (onBookingCreated) {
-        onBookingCreated(bookingForCheckIn, guestToUse);
+        onBookingCreated(bookingWithRoom, guestToUse);
       }
       onClose();
       await onRefreshData();
-    } catch (error: any) {
-      reportError(error.message || 'Failed to create booking', 'error');
+    } catch (error) {
+      reportError(errorMessage(error, 'Failed to create booking'), 'error');
     } finally {
       setProcessing(false);
     }
@@ -624,14 +644,21 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
       // Create new guest if needed (for walk-in and online)
       if (effectiveType !== 'complimentary') {
         if (isCreatingNewGuest) {
-          if (!newGuestForm.first_name || !newGuestForm.last_name) {
-            reportError('Please fill in required guest fields');
+          // Fast booking: see the reservation path above — only a name is required.
+          if (!newGuestForm.first_name.trim()) {
+            reportError('Please enter the guest\'s name');
+            setProcessing(false);
+            return;
+          }
+
+          if (!newGuestForm.tourism_type) {
+            reportError('Please select the tourism type — it determines whether tourism tax applies');
             setProcessing(false);
             return;
           }
 
           notifyIfGuestContactIncomplete(newGuestForm);
-          const tourismType = newGuestForm.tourism_type || 'local';
+          const tourismType = newGuestForm.tourism_type;
 
           if (newGuestForm.email && newGuestForm.email.trim() && !isValidEmail(newGuestForm.email)) {
             reportError('Please enter a valid email address');
@@ -709,8 +736,8 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
 
           onSuccess(
             roomCount > 1
-              ? `Reservations created for ${guestToUse!.full_name} in Rooms ${selectedRoomNumbers}`
-              : `Reservation created for ${guestToUse!.full_name} in Room ${room.room_number}`
+              ? `Reservations created for ${guestToUse!.nick_name} in Rooms ${selectedRoomNumbers}`
+              : `Reservation created for ${guestToUse!.nick_name} in Room ${room.room_number}`
           );
           onClose();
           await onRefreshData();
@@ -745,8 +772,8 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
 
           onSuccess(
             roomCount > 1
-              ? `Reservations created for ${guestToUse!.full_name} in Rooms ${selectedRoomNumbers}`
-              : `Reservation created for ${guestToUse!.full_name} in Room ${room.room_number}`
+              ? `Reservations created for ${guestToUse!.nick_name} in Rooms ${selectedRoomNumbers}`
+              : `Reservation created for ${guestToUse!.nick_name} in Room ${room.room_number}`
           );
           onClose();
           await onRefreshData();
@@ -790,16 +817,16 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
           const complimentaryNights = bookingResults.reduce((sum, result) => sum + (result.complimentary_nights || 0), 0);
           onSuccess(
             roomCount > 1
-              ? `Complimentary reservations created for ${selectedGuestWithCredits.full_name} in Rooms ${selectedRoomNumbers} (${complimentaryNights} nights used)`
-              : `Complimentary reservation created for ${selectedGuestWithCredits.full_name} in Room ${room.room_number} (${complimentaryNights} nights used)`
+              ? `Complimentary reservations created for ${selectedGuestWithCredits.nick_name} in Rooms ${selectedRoomNumbers} (${complimentaryNights} nights used)`
+              : `Complimentary reservation created for ${selectedGuestWithCredits.nick_name} in Room ${room.room_number} (${complimentaryNights} nights used)`
           );
           onClose();
           await onRefreshData();
           break;
         }
       }
-    } catch (error: any) {
-      reportError(error.message || 'Failed to create booking', 'error');
+    } catch (error) {
+      reportError(errorMessage(error, 'Failed to create booking'), 'error');
     } finally {
       setProcessing(false);
     }
@@ -885,7 +912,7 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
     : 'No guests with free room credits found';
 
   const roomPickerEmptyText = isComplimentaryFlow && selectedGuestWithCredits
-    ? `No available rooms match ${selectedGuestWithCredits.full_name}'s complimentary room type${selectedGuestCreditRoomTypes ? ` (${selectedGuestCreditRoomTypes})` : ''}.`
+    ? `No available rooms match ${selectedGuestWithCredits.nick_name}'s complimentary room type${selectedGuestCreditRoomTypes ? ` (${selectedGuestCreditRoomTypes})` : ''}.`
     : isComplimentaryFlow && !loadingGuestsWithCredits && guestsWithCredits.length > 0 && availableRooms.length > 0
       ? 'No available rooms match any guest complimentary credit room type for the selected dates.'
       : 'No rooms available for the selected dates. Pick different dates below.';
@@ -970,9 +997,9 @@ const UnifiedBookingModal: React.FC<UnifiedBookingModalProps> = ({
 
   // Selected guest display (handles new/existing)
   const summaryGuestName = (() => {
-    if (effectiveType === 'complimentary') return selectedGuestWithCredits?.full_name || '—';
+    if (effectiveType === 'complimentary') return selectedGuestWithCredits?.nick_name || '—';
     if (isCreatingNewGuest) return [newGuestForm.first_name, newGuestForm.last_name].filter(Boolean).join(' ') || '—';
-    return selectedGuest?.full_name || '—';
+    return selectedGuest?.nick_name || '—';
   })();
 
   // Top-right "active mode/type" pill colors used in the summary aside

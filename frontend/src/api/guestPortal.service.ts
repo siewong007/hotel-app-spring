@@ -1,17 +1,31 @@
 import { api } from './client';
+import type { ConsentAcceptance } from '../features/legal/useConsent';
 import {
   Booking,
   Guest,
+  GuestEkycStatusSummary,
   GuestPaymentConfig,
+  GuestPortalAutoCheckinResponse,
+  GuestPortalClaimAccountRequest,
+  GuestPortalClaimAccountResponse,
   PaymentActionResponse,
   PaypalCreateOrderResponse,
   PreCheckInUpdateRequest,
 } from '../types';
 
+/** Booking-scoped access token. Sent as a header so it never appears in the
+ *  request URL (access logs, browser history, Referer). Distinct from the
+ *  guest-portal session `Authorization` bearer. */
+export const BOOKING_ACCESS_TOKEN_HEADER = 'X-Booking-Access-Token';
+
+function bookingTokenHeaders(token: string): Record<string, string> {
+  return { [BOOKING_ACCESS_TOKEN_HEADER]: token };
+}
+
 export class GuestPortalService {
   static async verify(request: {
     booking_number: string;
-    email: string;
+    name: string;
   }): Promise<{ token: string; expires_at: string; booking_id: string }> {
     return await api.post('guest-portal/verify', { json: request }).json();
   }
@@ -19,44 +33,101 @@ export class GuestPortalService {
   static async getBooking(token: string): Promise<{
     booking: Booking;
     guest: Guest;
+    ekyc_summary?: GuestEkycStatusSummary | null;
+    receipt_request_payment_id?: number | null;
+    receipt_request_message?: string | null;
+    receipt_uploaded?: boolean;
   }> {
-    return await api.get(`guest-portal/booking/${token}`).json();
+    return await api.get('guest-portal/booking', { headers: bookingTokenHeaders(token) }).json();
   }
 
   static async submitPreCheckin(
     token: string,
     request: PreCheckInUpdateRequest
   ): Promise<{ booking: Booking; guest: Guest }> {
-    return await api.post(`guest-portal/pre-checkin/${token}`, { json: request }).json();
+    return await api
+      .post('guest-portal/pre-checkin', { json: request, headers: bookingTokenHeaders(token) })
+      .json();
   }
 
   /**
-   * Public payment configuration (bank details + PayPal client id, when
-   * enabled). No auth of any kind — safe to call before a guest session or a
-   * pre-arrival token is available.
+   * Create a portal login for the guest this booking token authenticates.
+   *
+   * Not `/auth/register`: that always inserts a new guest profile and rejects
+   * a name that already exists, which is every guest who has booked. The
+   * account this mints is bound to the booking's own guest, which is what
+   * makes identity verification (and later, self check-in) reachable.
    */
-  static async paymentConfig(): Promise<GuestPaymentConfig> {
-    return await api.get('guest-portal/payment-config').json();
+  static async claimAccount(
+    token: string,
+    request: GuestPortalClaimAccountRequest
+  ): Promise<GuestPortalClaimAccountResponse> {
+    return await api
+      .post('guest-portal/claim-account', { json: request, headers: bookingTokenHeaders(token) })
+      .json();
   }
 
   /**
-   * Unauthenticated pre-arrival token flow: the booking token travels as a
-   * URL path segment on every request (see `getBooking` above), never in a
-   * body — these three methods follow the same shape.
+   * Check the guest in without the front desk.
+   *
+   * The backend re-checks every gate itself (approved eKYC with self check-in
+   * enabled, a confirmed booking, the arrival date reached, a room that is
+   * ready), so a stale `can_auto_checkin` on the client cannot check anyone in
+   * — a refusal comes back as a 400 naming the reason.
    */
-  static async submitBankTransfer(token: string): Promise<PaymentActionResponse> {
-    return await api.post(`guest-portal/booking/${token}/payments/bank-transfer`).json();
+  static async autoCheckin(token: string): Promise<GuestPortalAutoCheckinResponse> {
+    return await api
+      .post('guest-portal/auto-checkin', { headers: bookingTokenHeaders(token) })
+      .json();
+  }
+
+  /**
+   * Payment configuration (bank details + PayPal client id, when enabled).
+   * Requires the booking-scoped access token — bank account numbers are not
+   * a public scrape target.
+   */
+  static async paymentConfig(token: string): Promise<GuestPaymentConfig> {
+    return await api
+      .get('guest-portal/payment-config', { headers: bookingTokenHeaders(token) })
+      .json();
+  }
+
+  /**
+   * Unauthenticated pre-arrival token flow: the booking token travels in
+   * `X-Booking-Access-Token`, never in the URL. `consents` carries the
+   * payment-terms agreement the panel collected — the API refuses the call
+   * without it.
+   */
+  static async submitBankTransfer(
+    token: string,
+    consents: ConsentAcceptance[]
+  ): Promise<PaymentActionResponse> {
+    return await api
+      .post('guest-portal/booking/payments/bank-transfer', {
+        headers: bookingTokenHeaders(token),
+        json: { consents },
+      })
+      .json();
   }
 
   static async uploadPaymentReceipt(token: string, paymentId: number, file: File): Promise<void> {
     const form = new FormData();
     form.append('file', file);
-    await api.post(`guest-portal/booking/${token}/payments/${paymentId}/receipt`, { body: form });
+    await api.post(`guest-portal/booking/payments/${paymentId}/receipt`, {
+      body: form,
+      headers: bookingTokenHeaders(token),
+    });
   }
 
-  static async createPaypalOrder(token: string): Promise<PaypalCreateOrderResponse> {
+  static async createPaypalOrder(
+    token: string,
+    consents: ConsentAcceptance[]
+  ): Promise<PaypalCreateOrderResponse> {
     return await api
-      .post(`guest-portal/booking/${token}/payments/paypal/create-order`)
+      .post('guest-portal/booking/payments/paypal/create-order', {
+        headers: bookingTokenHeaders(token),
+        json: { consents },
+      })
       .json();
   }
 
@@ -66,8 +137,9 @@ export class GuestPortalService {
     paymentId: number
   ): Promise<PaymentActionResponse> {
     return await api
-      .post(`guest-portal/booking/${token}/payments/paypal/capture`, {
+      .post('guest-portal/booking/payments/paypal/capture', {
         json: { order_id: orderId, payment_id: paymentId },
+        headers: bookingTokenHeaders(token),
       })
       .json();
   }

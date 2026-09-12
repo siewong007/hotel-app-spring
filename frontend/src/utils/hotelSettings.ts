@@ -28,6 +28,7 @@ export interface HotelSettings {
   hotel_address: string;
   hotel_phone: string;
   hotel_email: string;
+  hotel_business_number: string; // Registered business (SSM) number shown in the booking terms
   check_in_time: string;
   check_out_time: string;
   night_shift_time: string; // Time when night audit runs and data gets posted for reporting
@@ -38,6 +39,7 @@ export interface HotelSettings {
   service_tax_rate: number; // Percentage (e.g., 8 for 8%)
   tourism_tax_rate: number; // Per night tourism tax
   default_payment_terms_days: number; // Default ledger due-date offset
+  unpaid_hold_release_hours: number; // Hours an unpaid booking holds its room; 0 disables auto-release
   report_font_size: number; // Base report preview/print font size in pixels
   report_font_family: string; // Font family for generated report previews and print output
   report_heading_font_size: number; // Large report headings and KPI values in pixels
@@ -46,8 +48,8 @@ export interface HotelSettings {
   report_caption_font_size: number; // Report captions and secondary labels in pixels
   report_chip_font_size: number; // Report status chip text size in pixels
   max_login_attempts: number; // Failed login attempts before lockout
-  totp_issuer_name: string; // Issuer shown in authenticator apps
-  passkey_relying_party_name: string; // Display name shown by passkey authenticators
+  totp_issuer_name: string; // Issuer shown in authenticator apps; empty falls back to hotel_name
+  passkey_relying_party_name: string; // Display name shown by passkey authenticators; empty falls back to hotel_name
   support_enabled: boolean; // Whether guests can start support conversations in the portal
   guest_booking_cancellation_enabled: boolean;
   support_categories: string[]; // Guest-selectable support intake categories
@@ -71,6 +73,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   hotel_address: '123 Main Street, City',
   hotel_phone: '+60-3-1234-5678',
   hotel_email: 'info@grandhotel.com',
+  hotel_business_number: 'SA2012724',
   check_in_time: '15:00',
   check_out_time: '11:00',
   night_shift_time: '23:00', // Default night audit time at 11 PM
@@ -81,6 +84,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   service_tax_rate: 8, // 8% service tax
   tourism_tax_rate: 10, // RM 10 per night for tourists (Malaysia standard)
   default_payment_terms_days: 30,
+  unpaid_hold_release_hours: 24, // Online holds expire after a day; 0 is off
   report_font_size: 14,
   report_font_family: DEFAULT_REPORT_FONT_FAMILY,
   report_heading_font_size: 24,
@@ -89,8 +93,8 @@ const DEFAULT_SETTINGS: HotelSettings = {
   report_caption_font_size: 13,
   report_chip_font_size: 12,
   max_login_attempts: 5,
-  totp_issuer_name: 'Hotel Management System',
-  passkey_relying_party_name: 'Hotel Management System',
+  totp_issuer_name: '', // Empty means the backend uses hotel_name
+  passkey_relying_party_name: '', // Empty means the backend uses hotel_name
   support_enabled: true,
   guest_booking_cancellation_enabled: false,
   support_categories: ['booking', 'stay', 'billing', 'loyalty', 'technical', 'other'],
@@ -151,9 +155,10 @@ export const normalizeBookingChannels = (raw: unknown): BookingChannel[] => {
       if (!name) continue;
       result.push({ name, abbreviation: lookup.get(name.toLowerCase()) ?? '' });
     } else if (item && typeof item === 'object') {
-      const name = typeof (item as any).name === 'string' ? (item as any).name.trim() : '';
+      const record = item as Record<string, unknown>;
+      const name = typeof record.name === 'string' ? record.name.trim() : '';
       if (!name) continue;
-      const abbreviation = typeof (item as any).abbreviation === 'string' ? (item as any).abbreviation.trim() : '';
+      const abbreviation = typeof record.abbreviation === 'string' ? record.abbreviation.trim() : '';
       result.push({ name, abbreviation });
     }
   }
@@ -207,6 +212,11 @@ export const getHotelSettings = (): HotelSettings => {
         service_tax_rate: Number(merged.service_tax_rate) || DEFAULT_SETTINGS.service_tax_rate,
         tourism_tax_rate: toMoneyNumber(merged.tourism_tax_rate) || DEFAULT_SETTINGS.tourism_tax_rate,
         default_payment_terms_days: Number(merged.default_payment_terms_days) || DEFAULT_SETTINGS.default_payment_terms_days,
+        // `|| DEFAULT` cannot be used here: 0 is the meaningful "disabled"
+        // value, and it is falsy, so it would be replaced by the default.
+        unpaid_hold_release_hours: Number.isFinite(Number(merged.unpaid_hold_release_hours))
+          ? Math.max(0, Math.trunc(Number(merged.unpaid_hold_release_hours)))
+          : DEFAULT_SETTINGS.unpaid_hold_release_hours,
         report_font_size: reportBaseFontSize,
         report_font_family: normalizeReportFontFamily(merged.report_font_family),
         report_heading_font_size: normalizeReportFontSize(

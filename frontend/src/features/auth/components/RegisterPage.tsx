@@ -12,14 +12,28 @@ import {
   Fade,
   Collapse,
   CircularProgress,
-  Divider,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
-import { PersonAdd as RegisterIcon } from '@mui/icons-material';
+import {
+  ArrowBack as ArrowBackIcon,
+  PersonAdd as RegisterIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../../../auth/AuthContext';
 import { validateEmail, validatePhone } from '../../../utils/validation';
 import { LoadingSpinner } from '../../../components';
-import { storage } from '../../../utils/storage';
-import { GoogleSignInButton } from './GoogleSignInButton';
+import { errorMessage } from '../../../utils/errorMessage';
+import { returnFromAuthPage, safeGuestRedirect } from '../guestRedirect';
+import { LanguageSwitcher } from '../../../components/common/LanguageSwitcher';
+import { useTranslation } from '../../../i18n';
+import { useTurnstile } from '../turnstile/useTurnstile';
+import { turnstileErrorMessage } from '../turnstile/turnstileError';
+import { ConsentNotice } from '../../legal/components/ConsentNotice';
+import { REGISTRATION_NOTICE } from '../../legal/content';
+import { buildNoticeConsentPayload } from '../../legal/noticeConsent';
+import { useLegalLocale } from '../../legal/LegalLocaleContext';
 
 const GUEST_LOGIN_REDIRECT_SECONDS = 5;
 
@@ -36,14 +50,20 @@ const RegisterPage: React.FC = () => {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
-  const { register, loginWithGoogle } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [googleError, setGoogleError] = useState('');
+  const { locale: legalLocale } = useLegalLocale();
+  const { t } = useTranslation('auth');
+  const turnstile = useTurnstile();
+  // See LoginPage: hold the button while the inline widget is still verifying.
+  const awaitingTurnstile = turnstile.enabled && !turnstile.token && !turnstile.error;
 
   useEffect(() => {
     if (redirectCountdown === null) {
@@ -51,7 +71,16 @@ const RegisterPage: React.FC = () => {
     }
 
     if (redirectCountdown === 0) {
-      navigate('/login?account=guest', { replace: true });
+      // Carry the booking intent through to sign-in. Dropping it here is what
+      // made "Book stay" -> register -> login end on the dashboard with the
+      // booking abandoned.
+      const redirectParam = safeGuestRedirect(searchParams.get('redirect'));
+      navigate(
+        redirectParam
+          ? `/login?redirect=${encodeURIComponent(redirectParam)}`
+          : '/login',
+        { replace: true }
+      );
       return;
     }
 
@@ -60,7 +89,9 @@ const RegisterPage: React.FC = () => {
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [navigate, redirectCountdown]);
+  }, [navigate, redirectCountdown, searchParams]);
+
+  const handleBack = () => returnFromAuthPage(navigate, searchParams.get('redirect'));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -127,9 +158,25 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
+    // The inline widget below the submit button normally solves while the form
+    // is being filled in; a missing token means it failed or is not finished.
+    if (turnstile.enabled && !turnstile.token) {
+      setError(
+        turnstile.error
+          ? turnstileErrorMessage(new Error(turnstile.error), t)
+          : t('turnstile.incomplete')
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // The notice under the submit button is the consent: pressing the button
+      // is the act it governs, so the payload is built from the notice rather
+      // than from ticked boxes. Nothing here can be submitted without the
+      // sentence having been on screen.
+      const consentPayload = buildNoticeConsentPayload(REGISTRATION_NOTICE, legalLocale);
       await register({
         username: formData.username,
         email: formData.email.trim() || undefined,
@@ -138,7 +185,11 @@ const RegisterPage: React.FC = () => {
         last_name: formData.lastName,
         phone: formData.phone,
         address_line1: formData.addressLine1.trim() || undefined,
-      });
+        consents: consentPayload.consents,
+        marketing_opt_in: consentPayload.marketing_opt_in,
+      }, turnstile.token);
+      // Single-use: re-solve so a resubmit cannot replay a spent token.
+      turnstile.reset();
 
       const requiresEmailVerification = Boolean(formData.email.trim());
       setSuccess(requiresEmailVerification
@@ -148,126 +199,42 @@ const RegisterPage: React.FC = () => {
       if (!requiresEmailVerification) {
         setRedirectCountdown(GUEST_LOGIN_REDIRECT_SECONDS);
       }
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err) {
+      turnstile.reset();
+      setError(errorMessage(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleCredential = async (credential: string) => {
-    setGoogleError('');
-    setError('');
-
-    try {
-      await loginWithGoogle(credential);
-
-      const storedUser = storage.getItem<{ profile_complete?: boolean }>('user');
-      const redirectParam = searchParams.get('redirect');
-      if (storedUser?.profile_complete === false) {
-        navigate(
-          redirectParam
-            ? `/complete-profile?redirect=${encodeURIComponent(redirectParam)}`
-            : '/complete-profile',
-          { replace: true }
-        );
-        return;
-      }
-
-      navigate(redirectParam === '/portal/book' ? '/portal/book' : '/guest-portal', { replace: true });
-    } catch (err: any) {
-      const message = err?.message || 'Google sign-in failed';
-      // Same 503-on-status contract as LoginPage.tsx's Google handler — see
-      // hotel-app-be/src/services/google_identity.rs.
-      setGoogleError(
-        err?.statusCode === 503
-          ? 'Google sign-in is unavailable right now. Please create an account below instead.'
-          : message
-      );
-    }
-  };
-
   return (
-    <Box
-      className="auth-page auth-page--register"
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--hotel-page-bg)',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: '-50%',
-          left: '-50%',
-          width: '200%',
-          height: '200%',
-          background: 'var(--hotel-soft-glow)',
-          animation: 'rotate 20s linear infinite',
-        },
-        '@keyframes rotate': {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
-        },
-      }}
-    >
+    <Box className="auth-page auth-page--register">
+      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
+        <LanguageSwitcher color="default" size="small" />
+      </Box>
       <Container className="auth-container" maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
         <Fade in timeout={800}>
           <Paper
             className="auth-card"
-            elevation={0}
-            sx={{
-              p: { xs: 4, sm: 6 },
-              width: '100%',
-              borderRadius: 4,
-              background: 'var(--hotel-panel-bg)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid var(--hotel-divider)',
-              overflow: 'hidden',
-              boxShadow: '0 20px 60px var(--hotel-shadow-color)',
-            }}
+            sx={{ p: { xs: 4, sm: 6 }, width: '100%', display: 'flex', flexDirection: 'column' }}
           >
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={handleBack}
+              sx={{ mb: 2, ml: -1, alignSelf: 'flex-start', color: 'var(--hotel-text-secondary)' }}
+            >
+              {t('common.back')}
+            </Button>
             {/* Header - Modern Bold Typography */}
-            <Box className="auth-heading" sx={{ textAlign: 'left', mb: { xs: 2.5, sm: 5 } }}>
-              <Typography
-                variant="h1"
-                sx={{
-                  fontSize: { xs: '2.75rem', sm: '4rem', md: '5rem' },
-                  fontWeight: 900,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 0.9,
-                  color: 'var(--hotel-text-primary)',
-                  mb: { xs: 0.75, sm: 1 },
-                  textTransform: 'uppercase',
-                  background: 'var(--hotel-action-gradient)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                Join us
+            <Box className="auth-heading" sx={{ mb: { xs: 3, sm: 4 } }}>
+              <Typography variant="h1" sx={{ fontSize: { xs: '2.75rem', sm: '3.5rem' } }}>
+                {t('register.title')}
               </Typography>
-              {/* The hotel name is already the card's eyebrow (.auth-card::before,
-                  fed by --auth-brand-eyebrow from the same settings), so it is
-                  deliberately not repeated here. */}
-              <Box sx={{
-                width: '60px',
-                height: '4px',
-                background: 'var(--hotel-action-gradient)',
-                mb: { xs: 1.25, sm: 2 },
-              }} />
               <Typography
                 variant="body2"
-                sx={{
-                  color: 'var(--hotel-text-secondary)',
-                  fontSize: '0.875rem',
-                  letterSpacing: '0.02em',
-                }}
+                sx={{ mt: 1, color: 'var(--hotel-text-secondary)' }}
               >
-                Save your details for a smoother stay
+                {t('register.subtitle')}
               </Typography>
             </Box>
 
@@ -340,19 +307,6 @@ const RegisterPage: React.FC = () => {
               </Alert>
             </Collapse>
 
-            {/* Google Guest Sign-In */}
-            {!success && (
-              <>
-                <Collapse in={!!googleError}>
-                  <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGoogleError('')}>
-                    {googleError}
-                  </Alert>
-                </Collapse>
-                <GoogleSignInButton onCredential={handleGoogleCredential} />
-                <Divider sx={{ my: 3 }}>or create an account</Divider>
-              </>
-            )}
-
           <form onSubmit={handleRegister}>
             <Grid container spacing={2}>
               <Grid size={12}>
@@ -364,14 +318,6 @@ const RegisterPage: React.FC = () => {
                   onChange={handleInputChange}
                   required
                   autoFocus
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                 />
               </Grid>
 
@@ -386,14 +332,6 @@ const RegisterPage: React.FC = () => {
                   onBlur={() => handleBlur('email')}
                   error={!!emailError}
                   helperText={emailError}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                 />
               </Grid>
 
@@ -405,14 +343,6 @@ const RegisterPage: React.FC = () => {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                 />
               </Grid>
 
@@ -424,14 +354,6 @@ const RegisterPage: React.FC = () => {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                 />
               </Grid>
 
@@ -446,14 +368,6 @@ const RegisterPage: React.FC = () => {
                   error={!!phoneError}
                   helperText={phoneError}
                   required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                 />
               </Grid>
 
@@ -466,14 +380,6 @@ const RegisterPage: React.FC = () => {
                   onChange={handleInputChange}
                   multiline
                   minRows={2}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
-                    },
-                  }}
                   slotProps={{
                     htmlInput: { maxLength: 255 }
                   }}
@@ -485,16 +391,25 @@ const RegisterPage: React.FC = () => {
                   fullWidth
                   label="Password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            edge="end"
+                            size="small"
+                          >
+                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
                     },
                   }}
                 />
@@ -505,53 +420,54 @@ const RegisterPage: React.FC = () => {
                   fullWidth
                   label="Confirm Password"
                   name="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      transition: 'all 0.3s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            onClick={() => setShowConfirmPassword((prev) => !prev)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            edge="end"
+                            size="small"
+                          >
+                            {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
                     },
                   }}
                 />
               </Grid>
             </Grid>
 
+            <ConsentNotice notice={REGISTRATION_NOTICE} />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{
-                mt: 3,
-                mb: 2,
-                py: 1.5,
-                background: 'var(--hotel-action-gradient)',
-                color: 'var(--hotel-on-accent)',
-                fontWeight: 600,
-                fontSize: '1rem',
-                transition: 'all 0.3s',
-                '&:hover': {
-                  background: 'var(--hotel-action-gradient-hover)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 16px var(--hotel-shadow-color)',
-                },
-                '&:active': {
-                  transform: 'translateY(0)',
-                },
-              }}
-              disabled={loading || redirectCountdown !== null}
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+              disabled={loading || awaitingTurnstile || redirectCountdown !== null}
             >
-              {loading ? <LoadingSpinner size={24} /> : 'Create Account'}
+              {loading ? <LoadingSpinner size={24} /> : t('register.submit')}
             </Button>
+
+            {turnstile.enabled && (
+              <Box
+                ref={turnstile.setContainer}
+                sx={{ display: 'flex', justifyContent: 'center', mb: 2, minHeight: 65 }}
+              />
+            )}
           </form>
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ color: 'var(--hotel-text-secondary)' }}>
-              Already have an account?{' '}
+              {t('register.alreadyHaveAccount')}{' '}
               <Button
                 variant="text"
                 sx={{
@@ -569,7 +485,7 @@ const RegisterPage: React.FC = () => {
                 }}
                 onClick={() => navigate('/login')}
               >
-                Sign in
+                {t('register.signIn')}
               </Button>
             </Typography>
           </Box>

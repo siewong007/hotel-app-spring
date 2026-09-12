@@ -14,11 +14,13 @@ import {
 import { format } from 'date-fns';
 import { GuestPortalService } from '../../../api';
 import { Booking, Guest } from '../../../types';
+import { errorMessage } from '../../../utils/errorMessage';
+import { captureBookingAccessToken } from '../../guestPortal/api/bookingAccessTokenStore';
 
 export const GuestCheckInVerify: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const token = captureBookingAccessToken(searchParams);
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [guest, setGuest] = useState<Guest | null>(null);
@@ -30,12 +32,20 @@ export const GuestCheckInVerify: React.FC = () => {
       const response = await GuestPortalService.getBooking(token!);
       setBooking(response.booking);
       setGuest(response.guest);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load booking information');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to load booking information'));
     } finally {
       setLoading(false);
     }
   }, [token]);
+
+  useEffect(() => {
+    if (searchParams.has('token')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('token');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!token) {
@@ -48,7 +58,7 @@ export const GuestCheckInVerify: React.FC = () => {
   }, [token, loadBookingData]);
 
   const handleContinue = () => {
-    navigate(`/guest-checkin/form?token=${token}`);
+    navigate('/guest-checkin/form');
   };
 
   if (loading) {
@@ -124,7 +134,7 @@ export const GuestCheckInVerify: React.FC = () => {
               <Typography variant="body2" sx={{
                 fontWeight: "bold"
               }}>
-                {guest.full_name}
+                {guest.nick_name}
               </Typography>
             </Grid>
             <Grid size={6}>

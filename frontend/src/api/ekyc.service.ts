@@ -1,5 +1,34 @@
-import { HTTPError } from 'ky';
-import { api, APIError } from './client';
+/**
+ * Guest eKYC submission. Admin-created verifications (EkycCreateDialog) send
+ * every field including guest_id; the self-service registration page omits
+ * guest_id and may send null for untouched optionals.
+ */
+export interface EkycSubmitPayload {
+  guest_id?: number | string;
+  full_name?: string;
+  date_of_birth?: string;
+  nationality?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  current_address?: string | null;
+  id_type?: string;
+  id_number?: string;
+  id_issuing_country?: string | null;
+  id_issue_date?: string | null;
+  id_expiry_date?: string;
+  id_front_image?: string | null;
+  id_back_image?: string | null;
+  selfie_image?: string | null;
+  proof_of_address?: string | null;
+  self_checkin_enabled?: boolean;
+  /** Explicit consent to process the ID document and facial image. The API
+   *  refuses the submission before reading any image without it: a selfie is
+   *  biometric data, which PDPA s.40 treats as sensitive personal data. */
+  consents?: ConsentAcceptance[];
+}
+
+import { api, toApiError } from './client';
+import type { ConsentAcceptance } from '../features/legal/useConsent';
 
 export interface EkycListParams {
   [key: string]: string | number | boolean | undefined;
@@ -51,6 +80,15 @@ export interface EkycApplicationSummary {
   updated_at: string;
   nearing_sla: boolean;
   overdue_sla: boolean;
+  /**
+   * Earliest upcoming check-in across the applicant's active bookings, or null
+   * when they have no stay ahead of them. Decided in SQL against the hotel's
+   * timezone — an approval that lands after the guest arrives is worthless, so
+   * this is what the queue should be worked by.
+   */
+  next_arrival_date: string | null;
+  /** That arrival is near enough to make this review urgent. */
+  arrival_imminent: boolean;
   version: number;
 }
 
@@ -179,28 +217,16 @@ function paramsToSearch(params?: EkycListParams): string {
   return search ? `?${search}` : '';
 }
 
-async function mapHttpError(error: unknown, fallback: string): Promise<never> {
-  if (error instanceof HTTPError) {
-    const errorData = await error.response.json().catch(() => ({}));
-    throw new APIError(
-      (errorData as any).error || fallback,
-      error.response.status,
-      errorData
-    );
-  }
-  throw new APIError(fallback);
-}
-
 export class EkycService {
   static async getEkycStatus(): Promise<{ status: string; submitted_at?: string } | null> {
     return await api.get('ekyc/status').json();
   }
 
-  static async submitEkycVerification(data: any): Promise<void> {
+  static async submitEkycVerification(data: EkycSubmitPayload): Promise<void> {
     try {
       await api.post('ekyc/submit', { json: data });
     } catch (error) {
-      await mapHttpError(error, 'eKYC submission failed');
+      throw toApiError(error, 'eKYC submission failed');
     }
   }
 
@@ -229,7 +255,7 @@ export class EkycService {
         .post(`ekyc/admin/applications/${applicationId}/actions`, { json: payload })
         .json();
     } catch (error) {
-      return await mapHttpError(error, 'eKYC action failed');
+      throw toApiError(error, 'eKYC action failed');
     }
   }
 
@@ -245,7 +271,7 @@ export class EkycService {
         })
         .json();
     } catch (error) {
-      return await mapHttpError(error, 'Sensitive field reveal failed');
+      throw toApiError(error, 'Sensitive field reveal failed');
     }
   }
 
@@ -280,7 +306,7 @@ export class EkycService {
     try {
       return await api.post('ekyc/upload-document', { body: formData }).json();
     } catch (error) {
-      return await mapHttpError(error, 'Document upload failed');
+      throw toApiError(error, 'Document upload failed');
     }
   }
 
@@ -290,7 +316,7 @@ export class EkycService {
     try {
       return await api.post('ekyc/admin/applications', { json: payload }).json();
     } catch (error) {
-      return await mapHttpError(error, 'Unable to create eKYC verification');
+      throw toApiError(error, 'Unable to create eKYC verification');
     }
   }
 }
@@ -300,12 +326,12 @@ export interface EkycAdminCreatePayload {
   selfie_image: string;
   id_front_image: string;
   id_back_image?: string;
-  id_type: string;
-  id_number: string;
-  full_name: string;
-  date_of_birth: string;
+  id_type?: string;
+  id_number?: string;
+  full_name?: string;
+  date_of_birth?: string;
   nationality?: string;
-  id_expiry_date: string;
+  id_expiry_date?: string;
   id_issue_date?: string;
   id_issuing_country?: string;
   proof_of_address?: string;

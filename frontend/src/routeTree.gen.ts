@@ -23,6 +23,7 @@ import { Route as ComplimentaryRouteImport } from './routes/complimentary'
 import { Route as DataTransferRouteImport } from './routes/data-transfer'
 import { Route as EkycRouteImport } from './routes/ekyc'
 import { Route as EkycAdminRouteImport } from './routes/ekyc-admin'
+import { Route as EnrollTwoFactorRouteImport } from './routes/enroll-two-factor'
 import { Route as GuestConfigRouteImport } from './routes/guest-config'
 import { Route as GuestPortalRouteImport } from './routes/guest-portal'
 import { Route as HelpRouteImport } from './routes/help'
@@ -49,9 +50,14 @@ import { Route as GuestCheckinIndexRouteImport } from './routes/guest-checkin/in
 import { Route as GuestCheckinConfirmRouteImport } from './routes/guest-checkin/confirm'
 import { Route as GuestCheckinFormRouteImport } from './routes/guest-checkin/form'
 import { Route as GuestCheckinVerifyRouteImport } from './routes/guest-checkin/verify'
+import { Route as LegalIdentityVerificationRouteImport } from './routes/legal/identity-verification'
+import { Route as LegalPaymentTermsRouteImport } from './routes/legal/payment-terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal/privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal/terms'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalBookRouteImport } from './routes/portal/book'
 import { Route as UnsubscribeTokenRouteImport } from './routes/unsubscribe.$token'
+import { Route as BookingRecoverPaymentTokenRouteImport } from './routes/booking.recover-payment.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -121,6 +127,11 @@ const EkycRoute = EkycRouteImport.update({
 const EkycAdminRoute = EkycAdminRouteImport.update({
   id: '/ekyc-admin',
   path: '/ekyc-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnrollTwoFactorRoute = EnrollTwoFactorRouteImport.update({
+  id: '/enroll-two-factor',
+  path: '/enroll-two-factor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuestConfigRoute = GuestConfigRouteImport.update({
@@ -253,6 +264,27 @@ const GuestCheckinVerifyRoute = GuestCheckinVerifyRouteImport.update({
   path: '/guest-checkin/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalIdentityVerificationRoute =
+  LegalIdentityVerificationRouteImport.update({
+    id: '/legal/identity-verification',
+    path: '/legal/identity-verification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LegalPaymentTermsRoute = LegalPaymentTermsRouteImport.update({
+  id: '/legal/payment-terms',
+  path: '/legal/payment-terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
   id: '/portal/',
   path: '/portal/',
@@ -268,6 +300,12 @@ const UnsubscribeTokenRoute = UnsubscribeTokenRouteImport.update({
   path: '/unsubscribe/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookingRecoverPaymentTokenRoute =
+  BookingRecoverPaymentTokenRouteImport.update({
+    id: '/booking/recover-payment/$token',
+    path: '/booking/recover-payment/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -284,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/data-transfer': typeof DataTransferRoute
   '/ekyc': typeof EkycRoute
   '/ekyc-admin': typeof EkycAdminRoute
+  '/enroll-two-factor': typeof EnrollTwoFactorRoute
   '/guest-config': typeof GuestConfigRoute
   '/guest-portal': typeof GuestPortalRoute
   '/help': typeof HelpRoute
@@ -309,10 +348,15 @@ export interface FileRoutesByFullPath {
   '/guest-checkin/confirm': typeof GuestCheckinConfirmRoute
   '/guest-checkin/form': typeof GuestCheckinFormRoute
   '/guest-checkin/verify': typeof GuestCheckinVerifyRoute
+  '/legal/identity-verification': typeof LegalIdentityVerificationRoute
+  '/legal/payment-terms': typeof LegalPaymentTermsRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/portal/book': typeof PortalBookRoute
   '/unsubscribe/$token': typeof UnsubscribeTokenRoute
   '/guest-checkin/': typeof GuestCheckinIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/booking/recover-payment/$token': typeof BookingRecoverPaymentTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -329,6 +373,7 @@ export interface FileRoutesByTo {
   '/data-transfer': typeof DataTransferRoute
   '/ekyc': typeof EkycRoute
   '/ekyc-admin': typeof EkycAdminRoute
+  '/enroll-two-factor': typeof EnrollTwoFactorRoute
   '/guest-config': typeof GuestConfigRoute
   '/guest-portal': typeof GuestPortalRoute
   '/help': typeof HelpRoute
@@ -354,10 +399,15 @@ export interface FileRoutesByTo {
   '/guest-checkin/confirm': typeof GuestCheckinConfirmRoute
   '/guest-checkin/form': typeof GuestCheckinFormRoute
   '/guest-checkin/verify': typeof GuestCheckinVerifyRoute
+  '/legal/identity-verification': typeof LegalIdentityVerificationRoute
+  '/legal/payment-terms': typeof LegalPaymentTermsRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/portal/book': typeof PortalBookRoute
   '/unsubscribe/$token': typeof UnsubscribeTokenRoute
   '/guest-checkin': typeof GuestCheckinIndexRoute
   '/portal': typeof PortalIndexRoute
+  '/booking/recover-payment/$token': typeof BookingRecoverPaymentTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -375,6 +425,7 @@ export interface FileRoutesById {
   '/data-transfer': typeof DataTransferRoute
   '/ekyc': typeof EkycRoute
   '/ekyc-admin': typeof EkycAdminRoute
+  '/enroll-two-factor': typeof EnrollTwoFactorRoute
   '/guest-config': typeof GuestConfigRoute
   '/guest-portal': typeof GuestPortalRoute
   '/help': typeof HelpRoute
@@ -400,10 +451,15 @@ export interface FileRoutesById {
   '/guest-checkin/confirm': typeof GuestCheckinConfirmRoute
   '/guest-checkin/form': typeof GuestCheckinFormRoute
   '/guest-checkin/verify': typeof GuestCheckinVerifyRoute
+  '/legal/identity-verification': typeof LegalIdentityVerificationRoute
+  '/legal/payment-terms': typeof LegalPaymentTermsRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/portal/book': typeof PortalBookRoute
   '/unsubscribe/$token': typeof UnsubscribeTokenRoute
   '/guest-checkin/': typeof GuestCheckinIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/booking/recover-payment/$token': typeof BookingRecoverPaymentTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -422,6 +478,7 @@ export interface FileRouteTypes {
     | '/data-transfer'
     | '/ekyc'
     | '/ekyc-admin'
+    | '/enroll-two-factor'
     | '/guest-config'
     | '/guest-portal'
     | '/help'
@@ -447,10 +504,15 @@ export interface FileRouteTypes {
     | '/guest-checkin/confirm'
     | '/guest-checkin/form'
     | '/guest-checkin/verify'
+    | '/legal/identity-verification'
+    | '/legal/payment-terms'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/portal/book'
     | '/unsubscribe/$token'
     | '/guest-checkin/'
     | '/portal/'
+    | '/booking/recover-payment/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -467,6 +529,7 @@ export interface FileRouteTypes {
     | '/data-transfer'
     | '/ekyc'
     | '/ekyc-admin'
+    | '/enroll-two-factor'
     | '/guest-config'
     | '/guest-portal'
     | '/help'
@@ -492,10 +555,15 @@ export interface FileRouteTypes {
     | '/guest-checkin/confirm'
     | '/guest-checkin/form'
     | '/guest-checkin/verify'
+    | '/legal/identity-verification'
+    | '/legal/payment-terms'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/portal/book'
     | '/unsubscribe/$token'
     | '/guest-checkin'
     | '/portal'
+    | '/booking/recover-payment/$token'
   id:
     | '__root__'
     | '/'
@@ -512,6 +580,7 @@ export interface FileRouteTypes {
     | '/data-transfer'
     | '/ekyc'
     | '/ekyc-admin'
+    | '/enroll-two-factor'
     | '/guest-config'
     | '/guest-portal'
     | '/help'
@@ -537,10 +606,15 @@ export interface FileRouteTypes {
     | '/guest-checkin/confirm'
     | '/guest-checkin/form'
     | '/guest-checkin/verify'
+    | '/legal/identity-verification'
+    | '/legal/payment-terms'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/portal/book'
     | '/unsubscribe/$token'
     | '/guest-checkin/'
     | '/portal/'
+    | '/booking/recover-payment/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -558,6 +632,7 @@ export interface RootRouteChildren {
   DataTransferRoute: typeof DataTransferRoute
   EkycRoute: typeof EkycRoute
   EkycAdminRoute: typeof EkycAdminRoute
+  EnrollTwoFactorRoute: typeof EnrollTwoFactorRoute
   GuestConfigRoute: typeof GuestConfigRoute
   GuestPortalRoute: typeof GuestPortalRoute
   HelpRoute: typeof HelpRoute
@@ -583,10 +658,15 @@ export interface RootRouteChildren {
   GuestCheckinConfirmRoute: typeof GuestCheckinConfirmRoute
   GuestCheckinFormRoute: typeof GuestCheckinFormRoute
   GuestCheckinVerifyRoute: typeof GuestCheckinVerifyRoute
+  LegalIdentityVerificationRoute: typeof LegalIdentityVerificationRoute
+  LegalPaymentTermsRoute: typeof LegalPaymentTermsRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
   PortalBookRoute: typeof PortalBookRoute
   UnsubscribeTokenRoute: typeof UnsubscribeTokenRoute
   GuestCheckinIndexRoute: typeof GuestCheckinIndexRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  BookingRecoverPaymentTokenRoute: typeof BookingRecoverPaymentTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -687,6 +767,13 @@ declare module '@tanstack/react-router' {
       path: '/ekyc-admin'
       fullPath: '/ekyc-admin'
       preLoaderRoute: typeof EkycAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enroll-two-factor': {
+      id: '/enroll-two-factor'
+      path: '/enroll-two-factor'
+      fullPath: '/enroll-two-factor'
+      preLoaderRoute: typeof EnrollTwoFactorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guest-config': {
@@ -871,6 +958,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuestCheckinVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/identity-verification': {
+      id: '/legal/identity-verification'
+      path: '/legal/identity-verification'
+      fullPath: '/legal/identity-verification'
+      preLoaderRoute: typeof LegalIdentityVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/payment-terms': {
+      id: '/legal/payment-terms'
+      path: '/legal/payment-terms'
+      fullPath: '/legal/payment-terms'
+      preLoaderRoute: typeof LegalPaymentTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal/': {
       id: '/portal/'
       path: '/portal'
@@ -892,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnsubscribeTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/booking/recover-payment/$token': {
+      id: '/booking/recover-payment/$token'
+      path: '/booking/recover-payment/$token'
+      fullPath: '/booking/recover-payment/$token'
+      preLoaderRoute: typeof BookingRecoverPaymentTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -910,6 +1032,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataTransferRoute: DataTransferRoute,
   EkycRoute: EkycRoute,
   EkycAdminRoute: EkycAdminRoute,
+  EnrollTwoFactorRoute: EnrollTwoFactorRoute,
   GuestConfigRoute: GuestConfigRoute,
   GuestPortalRoute: GuestPortalRoute,
   HelpRoute: HelpRoute,
@@ -935,10 +1058,15 @@ const rootRouteChildren: RootRouteChildren = {
   GuestCheckinConfirmRoute: GuestCheckinConfirmRoute,
   GuestCheckinFormRoute: GuestCheckinFormRoute,
   GuestCheckinVerifyRoute: GuestCheckinVerifyRoute,
+  LegalIdentityVerificationRoute: LegalIdentityVerificationRoute,
+  LegalPaymentTermsRoute: LegalPaymentTermsRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
   PortalBookRoute: PortalBookRoute,
   UnsubscribeTokenRoute: UnsubscribeTokenRoute,
   GuestCheckinIndexRoute: GuestCheckinIndexRoute,
   PortalIndexRoute: PortalIndexRoute,
+  BookingRecoverPaymentTokenRoute: BookingRecoverPaymentTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -20,6 +20,7 @@ const DB_SETTING_KEYS = [
   'hotel_address',
   'hotel_phone',
   'hotel_email',
+  'hotel_business_number',
   'check_in_time',
   'check_out_time',
   'night_shift_time',
@@ -30,6 +31,7 @@ const DB_SETTING_KEYS = [
   'service_tax_rate',
   'tourism_tax_rate',
   'default_payment_terms_days',
+  'unpaid_hold_release_hours',
   'report_font_size',
   'report_font_family',
   'report_heading_font_size',
@@ -65,6 +67,18 @@ const DB_SETTING_KEY_SET = new Set<string>(DB_SETTING_KEYS);
 const parseNumberSetting = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+/**
+ * Like `parseNumberSetting`, but 0 is a real value rather than a miss.
+ *
+ * `parseNumberSetting` treats anything <= 0 as absent, which is right for a
+ * font size or an SLA but wrong for a setting where 0 means "off" — saving 0
+ * there would read back as the fallback and silently re-enable the feature.
+ */
+export const parseNonNegativeNumberSetting = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : fallback;
 };
 
 const parseBooleanSetting = (value: string | undefined, fallback: boolean) => {
@@ -118,6 +132,11 @@ const mergeSystemSettings = (
     hotel_address: values.get('hotel_address') ?? localSettings.hotel_address,
     hotel_phone: values.get('hotel_phone') ?? localSettings.hotel_phone,
     hotel_email: values.get('hotel_email') ?? localSettings.hotel_email,
+    // A blank row must not erase the number the booking terms print, so an
+    // empty value falls through to the compiled-in default the same way a
+    // missing row does.
+    hotel_business_number:
+      values.get('hotel_business_number')?.trim() || localSettings.hotel_business_number,
     check_in_time: values.get('check_in_time') ?? localSettings.check_in_time,
     check_out_time: values.get('check_out_time') ?? localSettings.check_out_time,
     night_shift_time: values.get('night_shift_time') ?? localSettings.night_shift_time,
@@ -133,6 +152,10 @@ const mergeSystemSettings = (
     default_payment_terms_days: parseNumberSetting(
       values.get('default_payment_terms_days'),
       localSettings.default_payment_terms_days
+    ),
+    unpaid_hold_release_hours: parseNonNegativeNumberSetting(
+      values.get('unpaid_hold_release_hours'),
+      localSettings.unpaid_hold_release_hours
     ),
     report_font_size: normalizeReportFontSize(
       values.get('report_font_size') ?? localSettings.report_font_size,

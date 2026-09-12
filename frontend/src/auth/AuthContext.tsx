@@ -1,16 +1,32 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, refreshAccessToken, APIError } from '../api/client';
+import { api, refreshAccessToken, APIError, readErrorData } from '../api/client';
 import { HTTPError } from 'ky';
+import { TWO_FACTOR_ENROLLMENT_REQUIRED_CODE } from '../features/auth/twoFactorEnrollment';
 import { errorMessage } from '../utils';
 import { AuthService } from '../api/auth.service';
 import { UsersService } from '../api/users.service';
 import { storage } from '../utils/storage';
+import { disableGoogleAutoSelect } from '../features/auth/components/GoogleSignInButton';
 import { setAccessToken, clearAccessToken } from './tokenStore';
 import type { RouteAccessPolicy, UserProfile } from '../types';
 import { normalizeAuthUser, type AuthUserShape } from './authUser';
+import type { ConsentAcceptance } from '../features/legal/useConsent';
 
 export interface User extends AuthUserShape {}
+
+/**
+ * Step-up re-authentication for registering a passkey.
+ *
+ * The API (`services::auth::ensure_step_up`) refuses to mint a passkey from a
+ * bare session: a passkey satisfies 2FA on its own, so a hijacked session
+ * would otherwise become a durable, 2FA-bypassing account takeover. Callers
+ * must collect the account password, or a TOTP code when 2FA is enabled.
+ */
+export interface PasskeyStepUp {
+  password?: string;
+  totpCode?: string;
+}
 
 export interface AuthState {
   user: User | null;
@@ -30,22 +46,35 @@ export interface LoginResult {
   // Set only when the submitted 2FA code was a recovery code, which the backend
   // consumes; the caller warns the user to regenerate their codes.
   recoveryCodesRemaining?: number;
+  // Set while the account is inside its two-factor enrolment grace window: the
+  // session works, but the caller must route the reader to enrolment. Past the
+  // deadline the sign-in fails instead — see isTwoFactorEnrollmentRequired.
+  twoFactorEnrollmentRequired?: boolean;
+  twoFactorEnrollmentDeadline?: string;
 }
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string, totpCode?: string) => Promise<LoginResult>;
-  loginWithGoogle: (credential: string) => Promise<LoginResult>;
+  login: (
+    username: string,
+    password: string,
+    totpCode?: string,
+    turnstileToken?: string,
+  ) => Promise<LoginResult>;
+  loginWithGoogle: (
+    credential: string,
+    options?: { consents: ConsentAcceptance[]; marketing_opt_in: boolean },
+  ) => Promise<LoginResult>;
   // Merges a freshly-returned profile (e.g. from POST /profile/complete) into
   // the in-memory auth user and its storage cache, without a network round
   // trip or a full-page reload. See applyAuthSession for the same
   // state+storage write-through pattern this mirrors.
   applyProfileUpdate: (profile: UserProfile) => void;
-  register: (data: { username: string; email?: string; password: string; first_name: string; last_name: string; phone: string; address_line1?: string }) => Promise<void>;
+  register: (data: { username: string; email?: string; password: string; first_name: string; last_name: string; phone: string; address_line1?: string; consents: ConsentAcceptance[]; marketing_opt_in: boolean }, turnstileToken?: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
   hasRole: (role: string) => boolean;
   getRoutePolicy: (routeId: string) => RouteAccessPolicy | undefined;
-  registerPasskey: (username: string) => Promise<void>;
+  registerPasskey: (username: string, stepUp?: PasskeyStepUp) => Promise<void>;
   loginWithPasskey: (username: string) => Promise<boolean>;
   dismissPasskeyPrompt: () => void;
   checkPasskeys: () => Promise<boolean>;
@@ -75,7 +104,7 @@ async function extractHttpErrorMessage(error: unknown, fallback: string): Promis
   let message = fallback;
   try {
     if (error instanceof HTTPError) {
-      const data = await error.response.json().catch(() => ({}) as { error?: string; message?: string });
+      const data = readErrorData(error);
       message = data.error || data.message || fallback;
     } else if (error instanceof Error && error.message) {
       message = error.message;
@@ -108,6 +137,11 @@ type AuthLoginResponse = {
   // src/auth/authUser.ts::normalizeAuthUser for the client-side defaulting.
   profile_complete?: boolean;
   missing_profile_fields?: string[];
+  // Set when this account's role requires a second factor, none is enrolled,
+  // and the grace window is still open. The session is valid; the caller must
+  // route the reader to enrolment. See features/auth/twoFactorEnrollment.ts.
+  two_factor_enrollment_required?: boolean;
+  two_factor_enrollment_deadline?: string;
 };
 
 const EMPTY_AUTH_STATE: AuthState = {
@@ -228,9 +262,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => window.removeEventListener('auth:tokens-refreshed', handleTokensRefreshed);
   }, []);
 
-  const register = useCallback(async (data: { username: string; email?: string; password: string; first_name: string; last_name: string; phone: string; address_line1?: string }) => {
+  const register = useCallback(async (data: { username: string; email?: string; password: string; first_name: string; last_name: string; phone: string; address_line1?: string; consents: ConsentAcceptance[]; marketing_opt_in: boolean }, turnstileToken?: string) => {
     try {
-      await AuthService.register(data);
+      await AuthService.register(data, turnstileToken);
     } catch (error) {
       console.error('Registration error:', error);
       throw new Error(await extractHttpErrorMessage(error, 'Registration failed'));
@@ -262,6 +296,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       recovery_codes_remaining,
       profile_complete,
       missing_profile_fields,
+      two_factor_enrollment_required,
+      two_factor_enrollment_deadline,
     } = data;
     const user = normalizeAuthUser({ ...responseUser, profile_complete, missing_profile_fields }, roles);
 
@@ -311,10 +347,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.warn('Failed to check passkeys, skipping passkey prompt:', error);
       });
 
-    return { isFirstLogin: is_first_login, recoveryCodesRemaining: recovery_codes_remaining };
+    return {
+      isFirstLogin: is_first_login,
+      recoveryCodesRemaining: recovery_codes_remaining,
+      twoFactorEnrollmentRequired: two_factor_enrollment_required,
+      twoFactorEnrollmentDeadline: two_factor_enrollment_deadline,
+    };
   }, [checkPasskeys, queryClient]);
 
-  const login = useCallback(async (username: string, password: string, totpCode?: string): Promise<LoginResult> => {
+  const login = useCallback(async (
+    username: string,
+    password: string,
+    totpCode?: string,
+    turnstileToken?: string,
+  ): Promise<LoginResult> => {
     try {
       // A user can sign back in before Safari finishes the previous logout
       // request. Always let that request settle first so it cannot revoke the
@@ -323,22 +369,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const data = await api.post('auth/login', {
         json: { username, password, totp_code: totpCode },
+        // Cloudflare Turnstile token, when this build challenges. Single-use:
+        // the 2FA leg calls login() a second time and must carry a fresh one.
+        ...(turnstileToken ? { headers: { 'cf-turnstile-response': turnstileToken } } : {}),
       }).json<AuthLoginResponse>();
 
       return applyAuthSession(data);
     } catch (error) {
       console.error('Login error:', error);
-      throw new Error(await extractHttpErrorMessage(error, 'Login failed'));
+      // An overdue two-factor enrolment is refused with a stable body code.
+      // Preserve it as APIError.details so the sign-in page can route to
+      // enrolment instead of matching translated message text — the same
+      // reasoning as loginWithGoogle preserving `statusCode` below.
+      const message = await extractHttpErrorMessage(error, 'Login failed');
+      if (error instanceof HTTPError) {
+        const body = readErrorData(error);
+        if (body.code === TWO_FACTOR_ENROLLMENT_REQUIRED_CODE) {
+          throw new APIError(message, error.response?.status, body);
+        }
+      }
+      throw new Error(message);
     }
   }, [applyAuthSession]);
 
-  const loginWithGoogle = useCallback(async (credential: string): Promise<LoginResult> => {
+  const loginWithGoogle = useCallback(async (
+    credential: string,
+    options?: { consents: ConsentAcceptance[]; marketing_opt_in: boolean },
+  ): Promise<LoginResult> => {
     try {
       // Same reasoning as login(): let any in-flight logout settle first so it
       // cannot revoke the refresh cookie this new session is about to create.
       await pendingLogoutRef.current;
 
-      const data = await AuthService.loginWithGoogle(credential);
+      const data = options
+        ? await AuthService.loginWithGoogle(credential, options)
+        : await AuthService.loginWithGoogle(credential);
 
       return applyAuthSession(data);
     } catch (error) {
@@ -381,6 +446,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       .catch(() => {
         // Ignore network/401 errors; the local session is being torn down anyway.
       });
+    // Google keeps its own account association independently of our session.
+    // Without this the next person to open the sign-in or registration page is
+    // greeted by the previous guest's name and email in the Google button.
+    disableGoogleAutoSelect();
     resetAuthState();
     clearStoredAuth();
     queryClient.clear();
@@ -434,11 +503,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [routePolicyMap]
   );
 
-  const registerPasskey = useCallback(async (username: string) => {
+  const registerPasskey = useCallback(async (username: string, stepUp?: PasskeyStepUp) => {
     try {
-      // Start passkey registration
+      // Start passkey registration. The step-up credential is required by the
+      // API; each key is omitted rather than sent empty, because the backend
+      // reads them as `Option` and an empty string is a failed check, not an
+      // absent one.
       const startResponse = await api.post('auth/passkey/register/start', {
-        json: { username },
+        json: {
+          username,
+          ...(stepUp?.password ? { password: stepUp.password } : {}),
+          ...(stepUp?.totpCode ? { totp_code: stepUp.totpCode } : {}),
+        },
       }).json<{
         challenge: string;
         rp: { name: string; id: string };
@@ -602,46 +678,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       }).json<AuthLoginResponse>();
 
-      const {
-        access_token,
-        user: responseUser,
-        roles,
-        permissions,
-        route_policies,
-        is_first_login,
-        profile_complete,
-        missing_profile_fields,
-      } = finishResponse;
-      const user = normalizeAuthUser({ ...responseUser, profile_complete, missing_profile_fields }, roles);
-
-      // Access token to memory only; refresh token arrives as an HttpOnly cookie.
-      setAccessToken(access_token);
-
-      // Cache non-sensitive profile data
-      storage.setItems({
-        user,
-        roles,
-        permissions,
-        routePolicies: route_policies,
-      });
-
-      // Invalidate cache to ensure immediate availability
-      storage.invalidateCache();
-      queryClient.clear();
-
-      // Set authenticated state
-      setAuthState({
-        user,
-        roles,
-        permissions,
-        routePolicies: route_policies,
-        accessToken: access_token,
-        isAuthenticated: true,
-        isLoading: false,
-        shouldPromptPasskey: false,
-      });
-
-      return is_first_login;
+      // Shares the session write-through with the password and Google doors.
+      // Hand-rolling it here let the two copies drift: this path was missing
+      // the `cmdRecents` clear, so the previous account's command-palette
+      // history survived a passkey sign-in on a shared machine.
+      return applyAuthSession(finishResponse).isFirstLogin;
     } catch (error) {
       const name = webAuthnErrorName(error);
       // Handle different error types
@@ -669,7 +710,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       throw new Error(message);
     }
-  }, [queryClient]);
+  }, [applyAuthSession]);
 
   const authContextValue = useMemo<AuthContextType>(() => ({
     ...authState,

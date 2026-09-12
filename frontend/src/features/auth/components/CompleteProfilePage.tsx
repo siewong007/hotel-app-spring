@@ -19,6 +19,8 @@ import { validatePhone } from '../../../utils/validation';
 import { useProfileQuery } from '../../user/hooks/useProfileQueries';
 import { queryKeys } from '../../../api/queryKeys';
 import { LoadingSpinner } from '../../../components';
+import { errorMessage } from '../../../utils/errorMessage';
+import { safeGuestRedirect } from '../guestRedirect';
 
 // A Google account only ever supplies one combined name; split it into the
 // first/last fields this form (and the backend contract) expect.
@@ -67,7 +69,7 @@ const CompleteProfilePage: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login?account=guest" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (user?.user_type !== 'guest') {
@@ -114,10 +116,10 @@ const CompleteProfilePage: React.FC = () => {
       queryClient.setQueryData(queryKeys.profile.me(), updatedProfile);
       applyProfileUpdate(updatedProfile);
 
-      const redirectTarget = searchParams.get('redirect');
-      navigate(redirectTarget === '/portal/book' ? '/portal/book' : '/guest-portal', { replace: true });
-    } catch (err: any) {
-      setError(err?.message || 'Could not save your profile. Please try again.');
+      const redirectTarget = safeGuestRedirect(searchParams.get('redirect'));
+      navigate(redirectTarget ?? '/guest-portal', { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, 'Could not save your profile. Please try again.'));
     } finally {
       setSubmitting(false);
     }

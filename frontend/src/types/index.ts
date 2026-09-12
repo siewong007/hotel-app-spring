@@ -51,6 +51,7 @@ export type {
   BookingEditFormData,
   BookingCancellationRequest,
   BookingVoidResponse,
+  BookingReleaseResponse,
   BookingTimelineEntry,
   CheckInRequest,
   CheckInAdvisory,
@@ -180,9 +181,15 @@ export * from './payment.types';
 
 // Guest portal (customer self-service) types
 export type {
+  ConsentAcceptancePayload,
+  GuestEkycStatusSummary,
+  GuestPortalAutoCheckinResponse,
+  GuestPortalClaimAccountRequest,
+  GuestPortalClaimAccountResponse,
   GuestPortalGuest,
   GuestPortalLoginResponse,
   GuestPortalMeResponse,
+  GuestPortalProfileUpdate,
   GuestPortalBookingSummary,
   GuestPortalPagedResponse,
   GuestPortalTransactionKind,

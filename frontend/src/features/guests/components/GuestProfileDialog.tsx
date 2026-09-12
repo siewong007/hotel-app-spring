@@ -27,6 +27,7 @@ import {
   WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 import { useCurrency } from '../../../hooks/useCurrency';
+import { formatStatusLabel } from '../../../utils/formatters';
 import type { GuestDuplicateCandidate, GuestProfileBooking } from '../../../types';
 import { useGuestProfile } from '../hooks/useGuestQueries';
 
@@ -54,7 +55,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const formatStatus = (value?: string | null) =>
-  value ? value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : 'N/A';
+  formatStatusLabel(value, 'N/A');
 
 const recommendationLabel = (candidate: GuestDuplicateCandidate) => {
   if (candidate.blocking_reasons.length > 0 || candidate.recommended_action === 'do_not_merge') {
@@ -223,7 +224,7 @@ const DuplicatesTab = ({ candidates }: { candidates: GuestDuplicateCandidate[] }
             }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                {candidate.guest.full_name}
+                {candidate.guest.nick_name}
               </Typography>
               <Typography
                 variant="body2"
@@ -323,7 +324,7 @@ const GuestProfileDialog: React.FC<GuestProfileDialogProps> = ({ open, guestId, 
               }}>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h5" sx={{ fontWeight: 900, overflowWrap: 'anywhere' }}>
-                    {guest.full_name}
+                    {guest.nick_name}
                   </Typography>
                   <Stack
                     direction="row"

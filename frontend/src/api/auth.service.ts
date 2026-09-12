@@ -1,5 +1,4 @@
-import { HTTPError } from 'ky';
-import { api, APIError } from './client';
+import { api, toApiError } from './client';
 import {
   UserProfile,
   UserProfileUpdate,
@@ -10,8 +9,20 @@ import {
   UserSessionInfo,
   AuthResponse,
 } from '../types';
+import type { ConsentAcceptance } from '../features/legal/useConsent';
 
 export class AuthService {
+  /** First-step login: confirm username/email maps to an active account. */
+  static async lookupLoginIdentifier(username: string): Promise<{ exists: boolean }> {
+    try {
+      return await api
+        .post('auth/login/lookup', { json: { username } })
+        .json<{ exists: boolean }>();
+    } catch (error) {
+      throw toApiError(error, 'Unable to verify username');
+    }
+  }
+
   // Registration & Verification
   static async register(data: {
     username: string;
@@ -21,36 +32,41 @@ export class AuthService {
     last_name: string;
     phone: string;
     address_line1?: string;
-  }): Promise<void> {
+    /** PDPA consent taken on the form. The API rejects a registration whose
+     *  Booking Terms or Privacy Notice consent is missing, refused, or pinned
+     *  to a superseded version. */
+    consents: ConsentAcceptance[];
+    marketing_opt_in: boolean;
+  }, turnstileToken?: string): Promise<void> {
     try {
-      await api.post('auth/register', { json: data });
+      await api.post('auth/register', {
+        json: data,
+        // Cloudflare Turnstile token, when this build challenges.
+        ...(turnstileToken ? { headers: { 'cf-turnstile-response': turnstileToken } } : {}),
+      });
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Registration failed',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Registration failed');
+      throw toApiError(error, 'Registration failed');
     }
   }
 
   // Google Guest Sign-In
-  static async loginWithGoogle(credential: string): Promise<AuthResponse> {
+  static async loginWithGoogle(
+    credential: string,
+    options?: { consents: ConsentAcceptance[]; marketing_opt_in: boolean },
+  ): Promise<AuthResponse> {
     try {
-      return await api.post('auth/google', { json: { credential } }).json<AuthResponse>();
+      return await api
+        .post('auth/google', {
+          json: {
+            credential,
+            ...(options
+              ? { consents: options.consents, marketing_opt_in: options.marketing_opt_in }
+              : {}),
+          },
+        })
+        .json<AuthResponse>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Google sign-in failed',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Google sign-in failed');
+      throw toApiError(error, 'Google sign-in failed');
     }
   }
 
@@ -63,15 +79,7 @@ export class AuthService {
     try {
       return await api.post('profile/complete', { json: input }).json<UserProfile>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Profile completion failed',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Profile completion failed');
+      throw toApiError(error, 'Profile completion failed');
     }
   }
 
@@ -79,15 +87,7 @@ export class AuthService {
     try {
       await api.post('auth/verify-email', { json: { token } });
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Email verification failed',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Email verification failed');
+      throw toApiError(error, 'Email verification failed');
     }
   }
 
@@ -147,7 +147,13 @@ export class AuthService {
     await api.post('profile/2fa/disable', { json: { code } });
   }
 
-  static async getTwoFactorStatus(): Promise<{ enabled: boolean; backup_codes_remaining: number }> {
+  static async getTwoFactorStatus(): Promise<{
+    enabled: boolean;
+    backup_codes_remaining: number;
+    /** When the current set of recovery codes was issued. Null when 2FA is
+     *  off, or when the issuing event has aged out of the audit partitions. */
+    backup_codes_generated_at?: string | null;
+  }> {
     return await api.get('auth/2fa/status').json();
   }
 

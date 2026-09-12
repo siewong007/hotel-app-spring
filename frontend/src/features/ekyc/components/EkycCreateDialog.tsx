@@ -24,6 +24,7 @@ import { EkycService } from '../../../api/ekyc.service';
 import { useCreateEkycApplication } from '../hooks/useEkycQueries';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { validateEkycCreateForm } from '../utils/ekycCreateValidation';
+import { errorMessage } from '../../../utils/errorMessage';
 
 const ID_TYPES = [
   { value: 'passport', label: 'Passport' },
@@ -60,7 +61,7 @@ const guestAddress = (guest: Guest) =>
 
 const withGuestDefaults = (form: typeof emptyForm, guest: Guest) => ({
   ...form,
-  fullName: form.fullName || guest.full_name || '',
+  fullName: form.fullName || guest.nick_name || '',
   nationality: form.nationality || guest.nationality || '',
   phone: form.phone || guest.phone || '',
   email: form.email || guest.email || '',
@@ -137,7 +138,7 @@ const EkycCreateDialog: React.FC<EkycCreateDialogProps> = ({
   useEffect(() => {
     if (!open || !initialGuest) return;
     setGuest(initialGuest);
-    setGuestInput(initialGuest.full_name || '');
+    setGuestInput(initialGuest.nick_name || '');
     setGuestOptions([initialGuest]);
     setForm(formFromGuest(initialGuest));
     setError(null);
@@ -189,7 +190,7 @@ const EkycCreateDialog: React.FC<EkycCreateDialogProps> = ({
 
   const handleSelectGuest = (value: Guest | null) => {
     setGuest(value);
-    setGuestInput(value?.full_name || '');
+    setGuestInput(value?.nick_name || '');
     if (value) {
       setGuestOptions((prev) => [value, ...prev.filter((option) => option.id !== value.id)]);
       setForm((prev) => withGuestDefaults(prev, value));
@@ -243,8 +244,8 @@ const EkycCreateDialog: React.FC<EkycCreateDialogProps> = ({
       );
       reset();
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create eKYC verification.');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to create eKYC verification.'));
     }
   };
 
@@ -281,7 +282,7 @@ const EkycCreateDialog: React.FC<EkycCreateDialogProps> = ({
               onInputChange={(_, value) => {
                 if (!lockGuest) setGuestInput(value);
               }}
-              getOptionLabel={(g) => (g ? `${g.full_name}${g.email ? ` · ${g.email}` : ''}` : '')}
+              getOptionLabel={(g) => (g ? `${g.nick_name}${g.email ? ` · ${g.email}` : ''}` : '')}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               noOptionsText={guestInput.trim().length < 2 ? 'Type to search guests…' : 'No guests found'}
               renderInput={(params) => (

@@ -1,11 +1,11 @@
-import { HTTPError } from 'ky';
-import { api, APIError } from './client';
+import { api, APIError, toApiError } from './client';
 import {
   Booking,
   BookingCreateRequest,
   BookingUpdateRequest,
   BookingCancellationRequest,
   BookingVoidResponse,
+  BookingReleaseResponse,
   BookingTimelineEntry,
   BookingWithDetails,
   CheckInRequest,
@@ -44,7 +44,7 @@ const emptyBookingStats: BookingStatsResponse = {
 };
 
 export class BookingsService {
-  static async getAllBookings(filters?: { room_number?: string; company_billed?: boolean }): Promise<Booking[]> {
+  static async getAllBookings(filters?: { room_number?: string; company_billed?: boolean }): Promise<BookingWithDetails[]> {
     try {
       const pageSize = 500;
       const baseParams: Record<string, any> = { page: 1, page_size: pageSize };
@@ -55,7 +55,7 @@ export class BookingsService {
         () => api.get('bookings', { searchParams: baseParams }).json<any>(),
         { maxAttempts: 3, initialDelay: 1000 }
       );
-      const firstData: Booking[] = Array.isArray(firstPage) ? firstPage : (firstPage.data || []);
+      const firstData: BookingWithDetails[] = Array.isArray(firstPage) ? firstPage : (firstPage.data || []);
       const total = firstPage.total || firstData.length;
 
       if (total <= pageSize) return firstData;
@@ -76,15 +76,7 @@ export class BookingsService {
         firstData
       );
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch bookings',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch bookings');
+      throw toApiError(error, 'Failed to fetch bookings');
     }
   }
 
@@ -106,15 +98,7 @@ export class BookingsService {
       };
       return await api.post('bookings', { json: backendData }).json<Booking>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to create booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to create booking');
+      throw toApiError(error, 'Failed to create booking');
     }
   }
 
@@ -124,15 +108,7 @@ export class BookingsService {
         .patch(`bookings/${bookingId}`, { json: updateData })
         .json<Booking>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to update booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to update booking');
+      throw toApiError(error, 'Failed to update booking');
     }
   }
 
@@ -142,15 +118,7 @@ export class BookingsService {
         .post(`bookings/${bookingId}/checkin`, { json: checkinData || {} })
         .json<Booking>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to check in guest',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to check in guest');
+      throw toApiError(error, 'Failed to check in guest');
     }
   }
 
@@ -165,15 +133,7 @@ export class BookingsService {
         .get(`bookings/${bookingId}/checkin-advisory`)
         .json<CheckInAdvisory>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to load check-in advisory',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to load check-in advisory');
+      throw toApiError(error, 'Failed to load check-in advisory');
     }
   }
 
@@ -187,15 +147,7 @@ export class BookingsService {
         .get('bookings/checkin-advisory', { searchParams: { guest_id: String(guestId) } })
         .json<CheckInAdvisory>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to load check-in advisory',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to load check-in advisory');
+      throw toApiError(error, 'Failed to load check-in advisory');
     }
   }
 
@@ -205,15 +157,27 @@ export class BookingsService {
         .post('bookings/void', { json: cancellationData })
         .json<BookingVoidResponse>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to void booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to void booking');
+      throw toApiError(error, 'Failed to void booking');
+    }
+  }
+
+  /**
+   * Release the room held by a booking that was never paid for.
+   *
+   * Narrower than `voidBooking`: the backend accepts only a `pending_payment`
+   * booking with no payments recorded, and the reason is mandatory — releasing
+   * frees inventory somebody else was refused, so the audit trail must say why.
+   */
+  static async releaseBooking(
+    bookingId: string | number,
+    reason: string,
+  ): Promise<BookingReleaseResponse> {
+    try {
+      return await api
+        .post(`bookings/${bookingId}/release`, { json: { reason } })
+        .json<BookingReleaseResponse>();
+    } catch (error) {
+      throw toApiError(error, 'Failed to release booking');
     }
   }
 
@@ -221,15 +185,7 @@ export class BookingsService {
     try {
       return await api.get(`bookings/${bookingId}`).json<Booking>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch booking');
+      throw toApiError(error, 'Failed to fetch booking');
     }
   }
 
@@ -237,15 +193,7 @@ export class BookingsService {
     try {
       return await api.get(`bookings/${bookingId}/timeline`).json<BookingTimelineEntry[]>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch booking timeline',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch booking timeline');
+      throw toApiError(error, 'Failed to fetch booking timeline');
     }
   }
 
@@ -281,23 +229,21 @@ export class BookingsService {
       if (params.sort_by) searchParams.sort_by = params.sort_by;
       if (params.sort_order) searchParams.sort_order = params.sort_order;
 
+      type BookingsPageResponse = { data?: BookingWithDetails[]; total?: number; page?: number; page_size?: number };
       const resp = await withRetry(
-        () => api.get('bookings', { searchParams }).json<any>(),
+        () => api.get('bookings', { searchParams }).json<BookingsPageResponse | BookingWithDetails[]>(),
         { maxAttempts: 3, initialDelay: 1000 }
       );
-      const raw: any[] = Array.isArray(resp) ? resp : (resp.data || []);
+      const raw = Array.isArray(resp) ? resp : (resp.data || []);
+      const meta = Array.isArray(resp) ? {} : resp;
       return {
-        data: raw.map(b => enhanceBookingDetails(b as any)),
-        total: resp.total ?? raw.length,
-        page: resp.page ?? 1,
-        page_size: resp.page_size ?? 50,
+        data: raw.map((b) => enhanceBookingDetails(b)),
+        total: meta.total ?? raw.length,
+        page: meta.page ?? 1,
+        page_size: meta.page_size ?? 50,
       };
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(errorData.error || 'Failed to fetch bookings', error.response.status, errorData);
-      }
-      throw new APIError('Failed to fetch bookings');
+      throw toApiError(error, 'Failed to fetch bookings');
     }
   }
 
@@ -315,13 +261,9 @@ export class BookingsService {
   static async getBookingsWithDetails(filters?: { room_number?: string; company_billed?: boolean }): Promise<BookingWithDetails[]> {
     try {
       const bookings = await this.getAllBookings(filters);
-      const bookingsWithDetails = bookings as any as BookingWithDetails[];
-      return bookingsWithDetails.map(booking => enhanceBookingDetails(booking));
+      return bookings.map(booking => enhanceBookingDetails(booking));
     } catch (error) {
-      if (error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError('Failed to fetch booking details');
+      throw toApiError(error, 'Failed to fetch booking details');
     }
   }
 
@@ -357,15 +299,7 @@ export class BookingsService {
         })
         .json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to mark booking as complimentary',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to mark booking as complimentary');
+      throw toApiError(error, 'Failed to mark booking as complimentary');
     }
   }
 
@@ -377,15 +311,7 @@ export class BookingsService {
         .post(`bookings/${bookingId}/convert-credits`)
         .json<{ success: boolean; message: string; nights_credited: number; guest_id: number }>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to convert complimentary to credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to convert complimentary to credits');
+      throw toApiError(error, 'Failed to convert complimentary to credits');
     }
   }
 
@@ -416,15 +342,7 @@ export class BookingsService {
         .post('bookings/book-with-credits', { json: data })
         .json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to book with complimentary credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to book with complimentary credits');
+      throw toApiError(error, 'Failed to book with complimentary credits');
     }
   }
 
@@ -437,15 +355,7 @@ export class BookingsService {
         { maxAttempts: 3, initialDelay: 1000 }
       );
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch complimentary bookings',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch complimentary bookings');
+      throw toApiError(error, 'Failed to fetch complimentary bookings');
     }
   }
 
@@ -458,15 +368,7 @@ export class BookingsService {
     try {
       return await api.get('complimentary/summary').json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch complimentary summary',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch complimentary summary');
+      throw toApiError(error, 'Failed to fetch complimentary summary');
     }
   }
 
@@ -489,15 +391,7 @@ export class BookingsService {
         .patch(`bookings/${bookingId}/complimentary`, { json: data })
         .json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to update complimentary booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to update complimentary booking');
+      throw toApiError(error, 'Failed to update complimentary booking');
     }
   }
 
@@ -510,15 +404,7 @@ export class BookingsService {
     try {
       return await api.delete(`bookings/${bookingId}/complimentary`).json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to remove complimentary status',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to remove complimentary status');
+      throw toApiError(error, 'Failed to remove complimentary status');
     }
   }
 
@@ -537,15 +423,7 @@ export class BookingsService {
     try {
       return await api.get('guests/credits').json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to fetch guests with credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to fetch guests with credits');
+      throw toApiError(error, 'Failed to fetch guests with credits');
     }
   }
 
@@ -570,15 +448,7 @@ export class BookingsService {
     try {
       return await api.post('guests/credits', { json: data }).json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to add guest credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to add guest credits');
+      throw toApiError(error, 'Failed to add guest credits');
     }
   }
 
@@ -604,15 +474,7 @@ export class BookingsService {
     try {
       return await api.patch(`guests/${guestId}/credits/${roomTypeId}`, { json: data }).json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to update guest credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to update guest credits');
+      throw toApiError(error, 'Failed to update guest credits');
     }
   }
 
@@ -633,15 +495,7 @@ export class BookingsService {
     try {
       return await api.delete(`guests/${guestId}/credits/${roomTypeId}`).json();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to delete guest credits',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to delete guest credits');
+      throw toApiError(error, 'Failed to delete guest credits');
     }
   }
 
@@ -651,15 +505,7 @@ export class BookingsService {
         .post(`bookings/${bookingId}/reactivate`)
         .json<Booking>();
     } catch (error) {
-      if (error instanceof HTTPError) {
-        const errorData = await error.response.json().catch(() => ({}));
-        throw new APIError(
-          errorData.error || 'Failed to reactivate booking',
-          error.response.status,
-          errorData
-        );
-      }
-      throw new APIError('Failed to reactivate booking');
+      throw toApiError(error, 'Failed to reactivate booking');
     }
   }
 }

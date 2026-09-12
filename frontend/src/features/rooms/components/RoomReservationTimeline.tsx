@@ -1,3 +1,13 @@
+// Self-hosted Caveat, in the weights this timeline uses. It replaced a
+// <link> to Google Fonts appended at mount, which the production CSP blocked
+// (style-src permits no cross-origin stylesheet), so the handwritten labels
+// have been rendering in the fallback font.
+import '@fontsource/caveat/latin-400.css';
+import '@fontsource/caveat/latin-600.css';
+import '@fontsource/caveat/latin-700.css';
+import '@fontsource/caveat/latin-ext-400.css';
+import '@fontsource/caveat/latin-ext-600.css';
+import '@fontsource/caveat/latin-ext-700.css';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Box,
@@ -37,6 +47,7 @@ import { useBookingsWithDetails } from '../../bookings/hooks/useBookingQueries';
 import { useRooms } from '../hooks/useRoomQueries';
 import { formatLocalDate } from '../../../utils/date';
 import { isPositiveMoney, toMoneyNumber } from '../../../utils/money';
+import { errorMessage } from '../../../utils/errorMessage';
 
 // ── Layout ────────────────────────────────────────────────────────────────
 const ROOM_COL = 220;
@@ -76,19 +87,6 @@ function statusBarColors(status: string, isComplimentary?: boolean): { bg: strin
     default:
       return { bg: '#dcd6ca', border: '#666' };
   }
-}
-
-// Load Caveat handwritten font once on mount.
-function useCaveatFont() {
-  useEffect(() => {
-    const id = 'caveat-font-link';
-    if (document.getElementById(id)) return;
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap';
-    document.head.appendChild(link);
-  }, []);
 }
 
 // Day-precision delta — normalises both ends to local midnight so DST and
@@ -185,7 +183,6 @@ function buildBookingBarLayout(
 }
 
 const RoomReservationTimeline: React.FC = () => {
-  useCaveatFont();
   const { format: formatCurrency } = useCurrency();
 
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +204,8 @@ const RoomReservationTimeline: React.FC = () => {
     setError(null);
     try {
       await Promise.all([roomsQuery.refetch(), bookingsQuery.refetch()]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load timeline data');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to load timeline data'));
     }
   }, [bookingsQuery, roomsQuery]);
 

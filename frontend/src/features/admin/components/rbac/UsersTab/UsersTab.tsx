@@ -44,6 +44,7 @@ import {
   useReplaceUserRoles,
   useUpdateUser,
 } from '../hooks/useRBACQueries';
+import { errorMessage } from '../../../../../utils/errorMessage';
 
 interface UserWithRoles extends User {
   roles?: Role[];
@@ -143,7 +144,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
     setError(null);
   };
 
-  const handleChange = (field: keyof UserFormData, value: any) => {
+  const handleChange = <K extends keyof UserFormData>(field: K, value: UserFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError(null);
   };
@@ -219,8 +220,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       }
 
       handleClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save user');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save user'));
     }
   };
 
@@ -232,8 +233,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       onUserDeleted(userToDelete.id);
       setDeleteDialogOpen(false);
       setUserToDelete(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete user');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to delete user'));
     }
   };
 
@@ -341,14 +342,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({
     },
   ], []);
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       {/* Header */}
@@ -394,10 +387,63 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       <DataTable<UserWithRoles>
         data={users}
         columns={columns}
+        loading={loading}
         globalFilter={searchQuery}
         emptyMessage="No users found"
         onRowClick={handleOpenEdit}
         getRowId={(row) => row.id}
+        renderMobileCard={(u) => (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 600 }}>{u.username}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{u.email}</Typography>
+                {u.full_name && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{u.full_name}</Typography>
+                )}
+              </Box>
+              <Chip
+                label={u.is_active ? 'Active' : 'Inactive'}
+                size="small"
+                color={u.is_active ? 'success' : 'default'}
+                variant={u.is_active ? 'filled' : 'outlined'}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minWidth: 0 }}>
+                {u.roles && u.roles.length > 0 ? (
+                  u.roles.map((role) => (
+                    <Chip
+                      key={role.id}
+                      label={role.name}
+                      size="small"
+                      icon={<SecurityIcon sx={{ fontSize: 14 }} />}
+                      sx={{
+                        bgcolor: alpha(getRoleColor(role.name), 0.1),
+                        color: getRoleColor(role.name),
+                        fontWeight: 500,
+                        '& .MuiChip-icon': { color: 'inherit' },
+                      }}
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>No roles</Typography>
+                )}
+              </Box>
+              <IconButton
+                size="small"
+                color="error"
+                aria-label="Delete user"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenDelete(u);
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+        )}
       />
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -475,7 +521,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({
               <Select
                 multiple
                 value={formData.role_ids}
-                onChange={(e) => handleChange('role_ids', e.target.value)}
+                onChange={(e) => {
+                  // MUI types multi-Select values as string | number[] even
+                  // when every MenuItem value is numeric.
+                  const ids = Array.isArray(e.target.value)
+                    ? e.target.value
+                    : [];
+                  handleChange('role_ids', ids);
+                }}
                 input={<OutlinedInput label="Roles" />}
                 renderValue={(selected) =>
                   roles

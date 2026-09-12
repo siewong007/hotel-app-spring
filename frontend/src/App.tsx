@@ -9,6 +9,8 @@ import { createAppTheme, ThemeMode } from './theme';
 import { DesktopServiceGate } from './desktop/DesktopServiceGate';
 import { storage } from './utils/storage';
 import { ApiNotificationHost } from './components/common/ApiNotificationHost';
+import { ConfirmProvider } from './components/common/ConfirmProvider';
+import { I18nProvider } from './i18n';
 import { router } from './router/router';
 import { ThemeModeContext } from './router/ThemeModeContext';
 
@@ -33,17 +35,21 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={activeTheme}>
-        <CssBaseline />
-        <DesktopServiceGate>
-          <AuthProvider>
-            <ApiNotificationHost />
-            <ThemeModeContext.Provider value={themeModeContextValue}>
-              <RouterProvider router={router} />
-            </ThemeModeContext.Provider>
-          </AuthProvider>
-        </DesktopServiceGate>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider theme={activeTheme}>
+          <CssBaseline />
+          <DesktopServiceGate>
+            <AuthProvider>
+              <ApiNotificationHost />
+              <ThemeModeContext.Provider value={themeModeContextValue}>
+                <ConfirmProvider>
+                  <RouterProvider router={router} />
+                </ConfirmProvider>
+              </ThemeModeContext.Provider>
+            </AuthProvider>
+          </DesktopServiceGate>
+        </ThemeProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
