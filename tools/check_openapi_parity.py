@@ -35,6 +35,12 @@ def collect_mapped():
                 if not value.startswith("/"):
                     continue
                 mapped.add((method, norm(value)))
+        # Raw WebSocket upgrades are registered via addHandler(handler, "path")
+        # in the WebSocketConfigurer, not via @GetMapping. The upgrade request
+        # is a GET, so count each registration as one.
+        for wm in re.finditer(r'addHandler\s*\([^,]+,\s*"([^"]+)"', src):
+            if wm.group(1).startswith("/"):
+                mapped.add(("GET", norm(wm.group(1))))
     return mapped
 
 

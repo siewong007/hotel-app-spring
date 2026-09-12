@@ -362,7 +362,7 @@ public class GuestSupport {
             }
             return getGuestConversation(guestId, existing);
         }
-        hub.publish(new SupportHub.ConversationChanged(guestId, conversationId));
+        hub.publish(SupportHub.ConversationChanged.of(guestId, conversationId));
 
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("guest_id", guestId);
@@ -428,7 +428,7 @@ public class GuestSupport {
             throw ApiError.conflict(
                     "This conversation changed. Refresh it before sending another message");
         }
-        hub.publish(new SupportHub.ConversationChanged(guestId, conversationId));
+        hub.publish(SupportHub.ConversationChanged.of(guestId, conversationId));
 
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("guest_id", guestId);
@@ -463,7 +463,7 @@ public class GuestSupport {
             throw ApiError.conflict(
                     "This conversation changed. Refresh it before reopening it");
         }
-        hub.publish(new SupportHub.ConversationChanged(guestId, conversationId));
+        hub.publish(SupportHub.ConversationChanged.of(guestId, conversationId));
 
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("guest_id", guestId);

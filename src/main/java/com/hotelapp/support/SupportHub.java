@@ -19,8 +19,22 @@ public class SupportHub {
 
     private static final Logger log = LoggerFactory.getLogger(SupportHub.class);
 
-    /** {@code SupportEvent::conversation_changed(guest_id, conversation_id)}. */
-    public record ConversationChanged(long guestId, long conversationId) {
+    /**
+     * {@code SupportEvent::conversation_changed(guest_id, conversation_id)}.
+     * Serialized as {@code {event_id, event_type, conversation_id}} — guest_id
+     * never crosses the wire (upstream marks it {@code #[serde(skip)]}).
+     */
+    public record ConversationChanged(
+            @com.fasterxml.jackson.annotation.JsonProperty("event_id") String eventId,
+            @com.fasterxml.jackson.annotation.JsonProperty("event_type") String eventType,
+            @com.fasterxml.jackson.annotation.JsonIgnore long guestId,
+            @com.fasterxml.jackson.annotation.JsonProperty("conversation_id")
+            long conversationId) {
+
+        public static ConversationChanged of(long guestId, long conversationId) {
+            return new ConversationChanged(java.util.UUID.randomUUID().toString(),
+                    "conversation_changed", guestId, conversationId);
+        }
     }
 
     private final List<Consumer<ConversationChanged>> subscribers =
