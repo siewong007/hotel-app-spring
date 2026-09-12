@@ -80,7 +80,8 @@ public class EngagementController {
         Long total = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM loyalty_members", Long.class);
         List<Map<String, Object>> data = jdbc.queryForList("""
-                SELECT lm.*, g.full_name, g.email FROM loyalty_members lm
+                SELECT lm.*, g.nick_name AS guest_name, g.email AS guest_email
+                FROM loyalty_members lm
                 LEFT JOIN guests g ON g.id = lm.guest_id
                 ORDER BY lm.created_at DESC LIMIT ? OFFSET ?
                 """, size, Page.offset(page, size));
@@ -91,7 +92,8 @@ public class EngagementController {
     public Map<String, Object> memberDetail(@PathVariable long id) {
         gateLoyaltyRead();
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT lm.*, g.full_name, g.email FROM loyalty_members lm
+                SELECT lm.*, g.nick_name AS guest_name, g.email AS guest_email
+                FROM loyalty_members lm
                 LEFT JOIN guests g ON g.id = lm.guest_id WHERE lm.id = ?
                 """, id);
         if (rows.isEmpty()) {

@@ -11,7 +11,9 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "vouchers",
-        uniqueConstraints = {@UniqueConstraint(columnNames = {"code"})})
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"code"}),
+                @UniqueConstraint(columnNames = {"promotion_id", "guest_id"}),
+                @UniqueConstraint(columnNames = {"guest_id", "source_reference"})})
 public class VouchersEntity {
 
     @GeneratedValue(strategy = GenerationType.IDENTITY)

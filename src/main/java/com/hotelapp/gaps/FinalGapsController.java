@@ -61,7 +61,7 @@ public class FinalGapsController {
         long userId = CurrentUser.require().userId();
         Long guestId = guestIdFor(userId);
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT lm.*, g.full_name FROM loyalty_members lm
+                SELECT lm.*, g.nick_name AS guest_name FROM loyalty_members lm
                 LEFT JOIN guests g ON g.id = lm.guest_id WHERE lm.guest_id = ?
                 """, guestId);
         if (rows.isEmpty()) {

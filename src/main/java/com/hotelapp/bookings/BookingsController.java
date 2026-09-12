@@ -441,16 +441,19 @@ public class BookingsController {
     }
 
     @GetMapping("/api/guests/credits")
-    public List<Map<String, Object>> guestsWithCredits() {
+    public Map<String, Object> guestsWithCredits() {
         gatePermission(CurrentUser.require().userId(), "guests:read");
-        return jdbc.queryForList("""
-                SELECT gc.guest_id, g.full_name, g.email, gc.room_type_id, rt.name AS room_type_name,
-                       gc.credit_nights
+        List<Map<String, Object>> credits = jdbc.queryForList("""
+                SELECT gc.guest_id, g.nick_name AS guest_name, g.email,
+                       gc.room_type_id, rt.name AS room_type_name, rt.code AS room_type_code,
+                       gc.nights_available, gc.notes
                 FROM guest_complimentary_credits gc
-                JOIN guests g ON g.id = gc.guest_id
-                JOIN room_types rt ON rt.id = gc.room_type_id
-                WHERE gc.credit_nights > 0
+                INNER JOIN guests g ON gc.guest_id = g.id
+                INNER JOIN room_types rt ON gc.room_type_id = rt.id
+                WHERE gc.nights_available > 0
+                ORDER BY g.nick_name, rt.name
                 """);
+        return Map.of("credits", credits);
     }
 
     @PostMapping("/api/guests/credits")
@@ -459,38 +462,165 @@ public class BookingsController {
         gatePermission(userId, "guests:manage");
         Number guestId = num(body, "guest_id");
         Number roomTypeId = num(body, "room_type_id");
-        Number nights = num(body, "credit_nights");
+        Number nights = num(body, "nights");
         if (guestId == null || roomTypeId == null || nights == null) {
             throw ApiError.badRequest("Guest ID, room type ID and nights are required");
         }
+        String reasonInput = str(body, "reason");
+        if (reasonInput == null) {
+            reasonInput = str(body, "notes");
+        }
+        String reason = creditReason(reasonInput);
+        Boolean guestExists = jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM guests WHERE id = ?)",
+                Boolean.class, guestId.longValue());
+        if (!Boolean.TRUE.equals(guestExists)) {
+            throw ApiError.notFound("Guest with id " + guestId + " not found");
+        }
+        Boolean roomTypeExists = jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM room_types WHERE id = ?)",
+                Boolean.class, roomTypeId.longValue());
+        if (!Boolean.TRUE.equals(roomTypeExists)) {
+            throw ApiError.notFound("Room type with id " + roomTypeId + " not found");
+        }
+        if (nights.intValue() <= 0) {
+            throw ApiError.badRequest("Nights must be greater than 0");
+        }
         jdbc.update("""
-                INSERT INTO guest_complimentary_credits (guest_id, room_type_id, credit_nights)
-                VALUES (?, ?, ?)
+                INSERT INTO guest_complimentary_credits (guest_id, room_type_id,
+                    nights_available, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ON CONFLICT (guest_id, room_type_id)
-                DO UPDATE SET credit_nights = guest_complimentary_credits.credit_nights + ?
-                """, guestId.longValue(), roomTypeId.longValue(), nights.intValue(),
-                nights.intValue());
-        audit.event(userId, "guest_credits_added", "guest", guestId.longValue(), null);
-        return message("Credits added successfully");
+                DO UPDATE SET nights_available = guest_complimentary_credits.nights_available + ?,
+                              notes = ?, updated_at = CURRENT_TIMESTAMP
+                """, guestId.longValue(), roomTypeId.longValue(), nights.intValue(), reason,
+                nights.intValue(), reason);
+        Map<String, Object> credit = jdbc.queryForMap("""
+                SELECT gc.guest_id, g.nick_name AS guest_name, gc.room_type_id,
+                       rt.name AS room_type_name, gc.nights_available
+                FROM guest_complimentary_credits gc
+                INNER JOIN guests g ON gc.guest_id = g.id
+                INNER JOIN room_types rt ON gc.room_type_id = rt.id
+                WHERE gc.guest_id = ? AND gc.room_type_id = ?
+                """, guestId.longValue(), roomTypeId.longValue());
+        audit.event(userId, "guest_complimentary_credits_granted", "guest",
+                guestId.longValue(), Map.of(
+                        "guest_id", guestId.longValue(),
+                        "room_type_id", roomTypeId.longValue(),
+                        "room_type_name", credit.get("room_type_name"),
+                        "nights_added", nights.intValue(),
+                        "nights_available", credit.get("nights_available"),
+                        "reason", reason));
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("success", true);
+        out.put("message", "Added " + nights.intValue() + " nights to guest credits");
+        Map<String, Object> creditOut = new java.util.LinkedHashMap<>(credit);
+        creditOut.put("reason", reason);
+        creditOut.put("notes", reason);
+        out.put("credit", creditOut);
+        return out;
     }
 
     @PatchMapping("/api/guests/{guestId}/credits/{roomTypeId}")
     public Map<String, Object> updateCredits(@PathVariable long guestId,
             @PathVariable long roomTypeId, @RequestBody Map<String, Object> body) {
         gatePermission(CurrentUser.require().userId(), "guests:manage");
-        jdbc.update("UPDATE guest_complimentary_credits SET credit_nights = ? "
-                + "WHERE guest_id = ? AND room_type_id = ?",
-                num(body, "credit_nights"), guestId, roomTypeId);
-        return message("Credits updated successfully");
+        Boolean creditExists = jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM guest_complimentary_credits"
+                        + " WHERE guest_id = ? AND room_type_id = ?)",
+                Boolean.class, guestId, roomTypeId);
+        if (!Boolean.TRUE.equals(creditExists)) {
+            throw ApiError.notFound("Credit record not found for guest " + guestId
+                    + " and room type " + roomTypeId);
+        }
+        Number nightsAvailable = num(body, "nights_available");
+        String notes = str(body, "notes");
+        if (nightsAvailable != null && nightsAvailable.intValue() < 0) {
+            throw ApiError.badRequest("Nights available cannot be negative");
+        }
+        if (nightsAvailable == null && notes == null) {
+            throw ApiError.badRequest("No fields to update");
+        }
+        if (nightsAvailable != null && notes != null) {
+            jdbc.update("UPDATE guest_complimentary_credits"
+                            + " SET nights_available = ?, notes = ?,"
+                            + " updated_at = CURRENT_TIMESTAMP"
+                            + " WHERE guest_id = ? AND room_type_id = ?",
+                    nightsAvailable.intValue(), notes, guestId, roomTypeId);
+        } else if (nightsAvailable != null) {
+            jdbc.update("UPDATE guest_complimentary_credits"
+                            + " SET nights_available = ?, updated_at = CURRENT_TIMESTAMP"
+                            + " WHERE guest_id = ? AND room_type_id = ?",
+                    nightsAvailable.intValue(), guestId, roomTypeId);
+        } else {
+            jdbc.update("UPDATE guest_complimentary_credits"
+                            + " SET notes = ?, updated_at = CURRENT_TIMESTAMP"
+                            + " WHERE guest_id = ? AND room_type_id = ?",
+                    notes, guestId, roomTypeId);
+        }
+        Map<String, Object> credit = jdbc.queryForMap("""
+                SELECT gc.guest_id, g.nick_name AS guest_name, gc.room_type_id,
+                       rt.name AS room_type_name, gc.nights_available, gc.notes
+                FROM guest_complimentary_credits gc
+                INNER JOIN guests g ON gc.guest_id = g.id
+                INNER JOIN room_types rt ON gc.room_type_id = rt.id
+                WHERE gc.guest_id = ? AND gc.room_type_id = ?
+                """, guestId, roomTypeId);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("success", true);
+        out.put("message", "Credits updated successfully");
+        out.put("credit", credit);
+        return out;
     }
 
     @DeleteMapping("/api/guests/{guestId}/credits/{roomTypeId}")
     public Map<String, Object> deleteCredits(@PathVariable long guestId,
             @PathVariable long roomTypeId) {
         gatePermission(CurrentUser.require().userId(), "guests:manage");
-        jdbc.update("DELETE FROM guest_complimentary_credits WHERE guest_id = ? "
-                + "AND room_type_id = ?", guestId, roomTypeId);
-        return message("Credits deleted successfully");
+        List<Map<String, Object>> credit = jdbc.queryForList("""
+                SELECT gc.nights_available, g.nick_name AS guest_name,
+                       rt.name AS room_type_name
+                FROM guest_complimentary_credits gc
+                INNER JOIN guests g ON gc.guest_id = g.id
+                INNER JOIN room_types rt ON gc.room_type_id = rt.id
+                WHERE gc.guest_id = ? AND gc.room_type_id = ?
+                """, guestId, roomTypeId);
+        if (credit.isEmpty()) {
+            throw ApiError.notFound("Credit record not found for guest " + guestId
+                    + " and room type " + roomTypeId);
+        }
+        Object nightsDeleted = credit.get(0).get("nights_available");
+        Object guestName = credit.get(0).get("guest_name");
+        Object roomTypeName = credit.get(0).get("room_type_name");
+        jdbc.update("DELETE FROM guest_complimentary_credits"
+                        + " WHERE guest_id = ? AND room_type_id = ?",
+                guestId, roomTypeId);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("success", true);
+        out.put("message", "Deleted " + nightsDeleted + " nights of " + roomTypeName
+                + " credits for " + guestName);
+        Map<String, Object> deleted = new java.util.LinkedHashMap<>();
+        deleted.put("guest_id", guestId);
+        deleted.put("guest_name", guestName);
+        deleted.put("room_type_id", roomTypeId);
+        deleted.put("room_type_name", roomTypeName);
+        deleted.put("nights_deleted", nightsDeleted);
+        out.put("deleted", deleted);
+        return out;
+    }
+
+    private static String creditReason(String reason) {
+        String cleaned = reason == null
+                ? "" : com.hotelapp.core.text.Sanitizer.sanitizeNotes(reason).trim();
+        if (cleaned.isEmpty()) {
+            throw ApiError.badRequest(
+                    "A reason is required when granting complimentary credits");
+        }
+        if (cleaned.codePointCount(0, cleaned.length()) > 500) {
+            throw ApiError.badRequest(
+                    "Complimentary credit reason must be 500 characters or fewer");
+        }
+        return cleaned;
     }
 
     private void gate(long userId) {

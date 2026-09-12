@@ -13,7 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 public class AuditLogsEntity {
 
     @Id
-    @Column(name = "id", columnDefinition = "bigint")
+    @Column(name = "id", columnDefinition = "bigint GENERATED ALWAYS AS IDENTITY")
     private Long id;
 
     @Column(name = "user_id", columnDefinition = "bigint")

@@ -75,10 +75,10 @@ Handler names + permission gates come from the upstream route registration for e
 | `/api/bookings/{id}/release` | `BE/src/routes/bookings.rs` |
 
 Steps:
-- [ ] For each of the 91 `(METHOD, path)` pairs present in `openapi.json` but absent from the inventory (recompute the diff — do not trust a stale list; ~3 are already mapped in Spring even though unlisted), find the `.route()` line in the registration file above; record handler fn name and `.layer(middleware::require_permission(...))`/`require_any_permission` gate exactly as written.
-- [ ] Append lines to `docs/api-parity-inventory.txt` sorted with the existing entries (the file is roughly grouped by prefix — keep new lines adjacent to their prefix siblings). Also fix any stale lines matching the Task 12 rename table so the inventory documents upstream's *current* 361, not 270 old + 91 new blindly.
-- [ ] Run the openapi-vs-Spring-mappings diff (the script used to produce the "88 truly missing" list — save it as `tools/check_openapi_parity.py` alongside `check_parity.py`, since the openapi skeleton is now the route truth). Expect 88 missing; that output is the live TODO for Tasks 4–11.
-- [ ] Commit `chore(docs): extend parity inventory to 361 upstream routes`.
+- [x] For each of the 91 `(METHOD, path)` pairs present in `openapi.json` but absent from the inventory (recompute the diff — do not trust a stale list; ~3 are already mapped in Spring even though unlisted), find the `.route()` line in the registration file above; record handler fn name and `.layer(middleware::require_permission(...))`/`require_any_permission` gate exactly as written.
+- [x] Append lines to `docs/api-parity-inventory.txt` sorted with the existing entries (the file is roughly grouped by prefix — keep new lines adjacent to their prefix siblings). Also fix any stale lines matching the Task 12 rename table so the inventory documents upstream's *current* 361, not 270 old + 91 new blindly.
+- [x] Run the openapi-vs-Spring-mappings diff (the script used to produce the "88 truly missing" list — save it as `tools/check_openapi_parity.py` alongside `check_parity.py`, since the openapi skeleton is now the route truth). Expect 88 missing; that output is the live TODO for Tasks 4–11.
+- [x] Commit `chore(docs): extend parity inventory to 361 upstream routes`.
 
 ### Task 2: Schema sync — entities + reference data (patches 0008–0016)
 
@@ -93,11 +93,11 @@ Entity column lists (from the patch DDL — copy names/types exactly):
 - `payment_retry_capabilities`: `id` bigint identity PK; `booking_id` bigint not null; `payment_id` bigint nullable; `token_hash` varchar(80) not null; `expires_at` timestamptz not null; `consumed_at` timestamptz; `replacement_payment_id` bigint; `created_at` timestamptz default now(). Indexes per tail of `0012_payment_retry_capabilities.sql`.
 
 reference-data.sql changes (match upstream text verbatim):
-- [ ] Add `unpaid_hold_release_hours`, `require_two_factor_roles`, `require_two_factor_grace_days`, `hotel_business_number` rows to the `system_settings` INSERT … ON CONFLICT block (values/descriptions/is_public per patches 0009/0013/0016).
-- [ ] Patch 0015 semantics: `totp_issuer_name`/`passkey_relying_party_name` seed `value=''` and the new descriptions ("Empty uses hotel_name."). Mirror both the INSERT values and the metadata-sync UPDATE clause if the file has one for these keys.
-- [ ] Check `GuestsEntity` for `firstName`/`lastName` fields against current upstream baseline (`git -C "$BE/.." show origin/master:hotel-app-be/database/postgres/migrations/0001_v1_baseline.sql | sed -n '1555,1575p'`); add if missing.
-- [ ] `./mvnw -q compile` clean; `./mvnw verify` green (SeederIT covers re-run idempotency — extend it if it asserts the settings row count).
-- [ ] Commit `feat(data): schema sync to upstream patch catalog 0016 (consent records, payment retry capabilities, client timezone, new settings)`.
+- [x] Add `unpaid_hold_release_hours`, `require_two_factor_roles`, `require_two_factor_grace_days`, `hotel_business_number` rows to the `system_settings` INSERT … ON CONFLICT block (values/descriptions/is_public per patches 0009/0013/0016).
+- [x] Patch 0015 semantics: `totp_issuer_name`/`passkey_relying_party_name` seed `value=''` and the new descriptions ("Empty uses hotel_name."). Mirror both the INSERT values and the metadata-sync UPDATE clause if the file has one for these keys.
+- [x] Check `GuestsEntity` for `firstName`/`lastName` fields against current upstream baseline (`git -C "$BE/.." show origin/master:hotel-app-be/database/postgres/migrations/0001_v1_baseline.sql | sed -n '1555,1575p'`); add if missing.
+- [x] `./mvnw -q compile` clean; `./mvnw verify` green (SeederIT covers re-run idempotency — extend it if it asserts the settings row count).
+- [x] Commit `feat(data): schema sync to upstream patch catalog 0016 (consent records, payment retry capabilities, client timezone, new settings)`.
 
 ### Task 3: Guest `nick_name` rename + guest payload deltas
 
@@ -108,12 +108,12 @@ Upstream sources (read the diffs, not just the files):
 **Files:** `guests/GuestsController.java`, `bookings/BookingsController.java`, `portal/PortalController.java`, `engagement/EngagementController.java`, `admin/AdminController.java`, `insights/InsightsController.java`, `gaps/*Controller.java`, `core/entity/GuestsEntity.java` (done in Task 2), DTOs under each package, `ReferenceDataSeeder.java`/sample-data.sql if they insert guests.
 
 Steps:
-- [ ] Rename every **guests-table** `full_name`/`fullName` reference to `nick_name`/`nickName` — JSON field names too (upstream renamed the serialized field; verify per-model serde names in the diff). Do NOT touch `users.full_name` or `ekyc_verifications.full_name`.
-- [ ] Expose `first_name`/`last_name` on guest payloads exactly where upstream added them (guest detail, booking guest blocks, folios after check-in uses legal names per `82982b32`).
-- [ ] Duplicate-nickname rule: anonymous booking hold with an already-taken nick → `409 {"error":…,"code":"guest_name_taken"}` — copy the exact body/code from upstream handler (grep `guest_name_taken` upstream). Remove any suffixing behavior if the port mirrored it.
-- [ ] `linked_guests` selection fix (`e6456f0c`): select every non-defaulted column — apply to the corresponding Spring query.
-- [ ] Tests: extend/create `GuestsIT` — payload shape incl. `nickName`/`firstName`/`lastName`; 409 on duplicate anonymous name; booking summary still renders guest name.
-- [ ] `./mvnw verify` green → commit `feat(guests): mirror nick_name rename, legal-name payloads, guest_name_taken 409`.
+- [x] Rename every **guests-table** `full_name`/`fullName` reference to `nick_name`/`nickName` — JSON field names too (upstream renamed the serialized field; verify per-model serde names in the diff). Do NOT touch `users.full_name` or `ekyc_verifications.full_name`.
+- [x] Expose `first_name`/`last_name` on guest payloads exactly where upstream added them (guest detail, booking guest blocks, folios after check-in uses legal names per `82982b32`).
+- [ ] Duplicate-nickname rule: anonymous booking hold with an already-taken nick → `409 {"error":…,"code":"guest_name_taken"}` — copy the exact body/code from upstream handler (grep `guest_name_taken` upstream). Remove any suffixing behavior if the port mirrored it. **(deferred to Task 5 — the anonymous-booking hold endpoint is part of the missing public-booking surface; guest-CRUD duplicate names already return 400 per upstream)**
+- [x] `linked_guests` selection fix (`e6456f0c`): select every non-defaulted column — apply to the corresponding Spring query.
+- [x] Tests: extend/create `GuestsIT` — payload shape incl. `nickName`/`firstName`/`lastName`; 409 on duplicate anonymous name; booking summary still renders guest name.
+- [x] `./mvnw verify` green → commit `feat(guests): mirror nick_name rename, legal-name payloads, guest_name_taken 409`.
 
 ### Task 4: Guest portal "me" hub + portal auth flows
 
