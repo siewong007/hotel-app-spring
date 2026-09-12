@@ -76,7 +76,6 @@ public class RatesController {
     }
 
     @PatchMapping("/api/room-types/{id}")
-    @PutMapping("/api/room-types/{id}")
     public Map<String, Object> updateRoomType(@PathVariable long id,
             @RequestBody Map<String, Object> body) {
         long userId = CurrentUser.require().userId();
@@ -147,7 +146,6 @@ public class RatesController {
     }
 
     @PatchMapping("/api/rate-plans/{id}")
-    @PutMapping("/api/rate-plans/{id}")
     public Map<String, Object> updateRatePlan(@PathVariable long id,
             @RequestBody Map<String, Object> body) {
         long userId = CurrentUser.require().userId();

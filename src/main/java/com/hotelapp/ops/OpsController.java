@@ -200,23 +200,6 @@ public class OpsController {
         return rows.isEmpty() ? previewBody() : rows.get(0);
     }
 
-    @GetMapping("/api/night-audit/runs")
-    public List<Map<String, Object>> nightAuditRuns() {
-        gate(CurrentUser.require().userId(), "night_audit:run");
-        return jdbc.queryForList("SELECT * FROM night_audit_runs ORDER BY audit_date DESC");
-    }
-
-    @GetMapping("/api/night-audit/runs/{id}")
-    public Map<String, Object> nightAuditRun(@PathVariable long id) {
-        gate(CurrentUser.require().userId(), "night_audit:run");
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT * FROM night_audit_runs WHERE id = ?", id);
-        if (rows.isEmpty()) {
-            throw ApiError.notFound("Night audit run not found");
-        }
-        return rows.get(0);
-    }
-
     private void gate(long userId, String permission) {
         com.hotelapp.core.security.PermissionGateHelper.check(userId, permission);
     }

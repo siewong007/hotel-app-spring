@@ -5,7 +5,6 @@ import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.numD;
 import static com.hotelapp.rates.RatesController.str;
 
-import com.hotelapp.billing.InvoiceNumbers;
 import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
@@ -37,16 +36,16 @@ public class BookingsController {
     private final AuditWriter audit;
     private final BookingRelease bookingRelease;
     private final BookingEmails bookingEmails;
-    private final InvoiceNumbers invoiceNumbers;
+    private final BookingLifecycle lifecycle;
 
     public BookingsController(JdbcTemplate jdbc, AuditWriter audit,
             BookingRelease bookingRelease, BookingEmails bookingEmails,
-            InvoiceNumbers invoiceNumbers) {
+            BookingLifecycle lifecycle) {
         this.jdbc = jdbc;
         this.audit = audit;
         this.bookingRelease = bookingRelease;
         this.bookingEmails = bookingEmails;
-        this.invoiceNumbers = invoiceNumbers;
+        this.lifecycle = lifecycle;
     }
 
     /** Run {@code task} after the surrounding transaction commits. */
@@ -182,26 +181,9 @@ public class BookingsController {
     @PatchMapping("/api/bookings/{id}")
     @PutMapping("/api/bookings/{id}")
     public Map<String, Object> update(@PathVariable long id,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody BookingUpdate input) {
         long userId = CurrentUser.require().userId();
-        gatePermission(userId, "bookings:update");
-        one(id);
-        var sets = new LinkedHashMap<String, Object>();
-        for (String column : List.of("adults", "children", "remarks", "source",
-                "special_requests", "market_code", "is_tourist", "early_check_in",
-                "late_check_out", "cleaning_preference")) {
-            if (body.containsKey(column)) {
-                sets.put(column + " = ?", body.get(column));
-            }
-        }
-        if (!sets.isEmpty()) {
-            sets.put("updated_at = NOW()", null);
-            jdbc.update("UPDATE bookings SET " + String.join(", ", sets.keySet())
-                    + " WHERE id = ?", sets.values().toArray());
-        }
-        history(id, userId, "modified", "Booking updated");
-        audit.event(userId, "booking_updated", "booking", id, null);
-        return one(id);
+        return lifecycle.updateBooking(userId, id, input);
     }
 
     @DeleteMapping("/api/bookings/{id}")
@@ -237,46 +219,6 @@ public class BookingsController {
         }
         history(id, userId, "checked_in", "Guest checked in");
         audit.event(userId, "guest_checked_in", "booking", id, null);
-        return one(id);
-    }
-
-    @PostMapping("/api/bookings/{id}/checkout")
-    @Transactional
-    public Map<String, Object> checkout(@PathVariable long id) {
-        long userId = CurrentUser.require().userId();
-        gatePermission(userId, "bookings:update");
-        Map<String, Object> booking = one(id);
-        if (!"checked_in".equals(str(booking, "status"))) {
-            throw ApiError.conflict("Only checked-in bookings can be checked out");
-        }
-        jdbc.update("""
-                UPDATE bookings SET status = 'checked_out', actual_check_out = NOW()
-                WHERE id = ?
-                """, id);
-        Number roomId = (Number) booking.get("room_id");
-        if (roomId != null) {
-            jdbc.update("UPDATE rooms SET status = 'dirty' WHERE id = ?", roomId.longValue());
-            jdbc.update("""
-                    INSERT INTO housekeeping_tasks (room_id, task_type, status)
-                    VALUES (?, 'checkout_cleaning', 'pending')
-                    """, roomId.longValue());
-        }
-        history(id, userId, "checked_out", "Guest checked out");
-        audit.event(userId, "guest_checked_out", "booking", id, null);
-        // Invoice + guest receipt mail, both best-effort and post-commit: a
-        // mail or invoice hiccup must not undo a committed checkout. The
-        // invoice number is the receipt's idempotency key; when invoicing
-        // fails upstream logs and sends nothing, and so do we.
-        afterCommit(() -> {
-            try {
-                String invoiceNumber = invoiceNumbers.ensureInvoiceForBooking(id, userId);
-                bookingEmails.tryQueueCheckoutReceiptEmail(id, invoiceNumber);
-            } catch (Exception e) {
-                org.slf4j.LoggerFactory.getLogger(BookingsController.class)
-                        .warn("Failed to issue checkout invoice for booking {}: {}",
-                                id, e.getMessage());
-            }
-        });
         return one(id);
     }
 

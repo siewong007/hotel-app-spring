@@ -23,7 +23,7 @@ public class InvoiceNumbers {
     }
 
     /** {@code next_invoice_number}: {@code INV-<YYYYMM>-<seq+1>} for the hotel month. */
-    private String nextInvoiceNumber() {
+    public String nextInvoiceNumber() {
         Map<String, Object> row = jdbc.queryForMap("""
                 SELECT TO_CHAR(CURRENT_DATE, 'YYYYMM') AS yyyymm, MAX(seq) AS max_seq
                 FROM (

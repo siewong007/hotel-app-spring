@@ -78,15 +78,7 @@ public class RoomsController {
         }
     }
 
-    @GetMapping("/api/rooms/{id}")
-    public Map<String, Object> getRoom(@PathVariable long id) {
-        long userId = CurrentUser.require().userId();
-        gate.check(userId, "rooms:read");
-        return getRoomOrThrow(id);
-    }
-
     @PatchMapping("/api/rooms/{id}")
-    @PutMapping("/api/rooms/{id}")
     public Map<String, Object> updateRoom(@PathVariable long id,
             @RequestBody Map<String, Object> body) {
         long userId = CurrentUser.require().userId();

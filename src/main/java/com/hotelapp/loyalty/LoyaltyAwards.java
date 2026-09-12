@@ -211,4 +211,73 @@ public class LoyaltyAwards {
                     paymentId, bookingId, e.getMessage());
         }
     }
+
+    /** {@code reverse_booking_points} — each reversal commits in its own
+     * transaction, mirroring upstream's per-transaction `pool.begin()`. */
+    public int reverseBookingPoints(long bookingId, Long actorUserId,
+            String reason) {
+        List<Map<String, Object>> transactions = jdbc.queryForList("""
+                SELECT t.id, t.member_id, t.account_id, t.transaction_type,
+                       t.points_delta, t.available_delta, t.source_type,
+                       t.source_id, t.booking_id, t.payment_id, t.invoice_id,
+                       t.related_transaction_id, t.description, t.metadata,
+                       t.actor_user_id, t.created_at
+                FROM loyalty_transactions t
+                WHERE t.booking_id = ?
+                  AND t.transaction_type = 'earned'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM loyalty_transactions r
+                      WHERE r.related_transaction_id = t.id
+                        AND r.transaction_type = 'reversed')
+                ORDER BY t.created_at ASC, t.id ASC
+                """, bookingId);
+        int reversed = 0;
+        for (Map<String, Object> txn : transactions) {
+            long memberId = ((Number) txn.get("member_id")).longValue();
+            long txnId = ((Number) txn.get("id")).longValue();
+            int pointsDelta = -((Number) txn.get("points_delta")).intValue();
+            int availableDelta = -((Number) txn.get("available_delta")).intValue();
+            txTemplate.executeWithoutResult(tx -> {
+                Long balanceBefore = jdbc.queryForObject(
+                        "SELECT COALESCE(SUM(available_delta), 0) "
+                                + "FROM loyalty_transactions WHERE member_id = ?",
+                        Long.class, memberId);
+                long balanceAfter = (balanceBefore == null ? 0 : balanceBefore)
+                        + availableDelta;
+                if (balanceAfter > Integer.MAX_VALUE
+                        || balanceAfter < Integer.MIN_VALUE) {
+                    throw ApiError.badRequest(
+                            "Loyalty points balance is out of range.");
+                }
+                jdbc.update("""
+                        INSERT INTO loyalty_transactions (
+                            member_id, account_id, transaction_type, points_delta,
+                            available_delta, balance_after, source_type, source_id,
+                            booking_id, payment_id, invoice_id,
+                            related_transaction_id, description, metadata,
+                            actor_user_id)
+                        VALUES (?, ?, 'reversed', ?, ?, ?, 'booking_reversal', ?,
+                                ?, ?, ?, ?, ?, CAST(? AS jsonb), ?)
+                        """, memberId, txn.get("account_id"), pointsDelta,
+                        availableDelta, balanceAfter, bookingId, bookingId,
+                        txn.get("payment_id"), txn.get("invoice_id"), txnId,
+                        reason, "{\"reason\":\"" + reason.replace("\"", "\\\"")
+                                + "\"}",
+                        actorUserId);
+            });
+            reversed++;
+        }
+        return reversed;
+    }
+
+    /** Best-effort wrapper mirroring upstream's `if let Err` warn-and-continue. */
+    public void tryReverseBookingPoints(long bookingId, Long actorUserId,
+            String reason) {
+        try {
+            reverseBookingPoints(bookingId, actorUserId, reason);
+        } catch (Exception e) {
+            log.warn("Failed to reverse loyalty points for booking {}: {}",
+                    bookingId, e.getMessage());
+        }
+    }
 }

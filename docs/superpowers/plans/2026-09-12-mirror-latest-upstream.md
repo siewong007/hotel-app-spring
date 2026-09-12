@@ -282,13 +282,14 @@ For each, port the upstream diff and prove with a test:
 
 For each row in the stale-mappings table (top of this doc): grep the upstream route registration at `origin/master` to confirm the canonical `(METHOD, path)`, then fix the Spring mapping — and the handler if upstream also changed request/response shape (`git diff b7bce0a8..origin/master -- <handler file>`). Rows already owned by another task (guest-portal `/me`, passkey `register/start`, comms admin move, promotions admin move, data-transfer export/preview) are fixed inside that task — this task owns only the rest:
 
-- [ ] `GET /api/rooms/{id}` → `/api/rooms/{id}/detailed`; `PUT` → `PATCH /api/rooms/{id}`; `PUT`→`PATCH` `/api/room-types/{id}` and `/api/rate-plans/{id}`.
-- [ ] `GET /api/night-audit/runs{,/{id}}` → `/api/night-audit{,/{id}}`.
-- [ ] Loyalty member surface: drop/rename `GET /api/loyalty/programs` and `POST /api/loyalty/rewards/redeem` to upstream's `/api/loyalty/{enroll,me,me/activity,rewards,rewards/{id}/redeem}` set — compare with what Spring already maps and unify.
-- [ ] `DELETE /api/admin/loyalty/rewards/{id}` — verify absence in `modules/loyalty/routes.rs`, then remove.
-- [ ] `POST /api/bookings/{id}/checkout` — find upstream's real checkout flow (likely payments/folio path); remove the phantom or repoint it.
-- [ ] Re-run `tools/check_openapi_parity.py` — spring-only count must drop to just infra routes (`/health`, `/ws/status`, `/uploads/**` — those stay per the spec).
-- [ ] `./mvnw verify` green → commit `fix(api): reconcile renamed endpoints to upstream route surface`.
+- [x] `GET /api/rooms/{id}` removed (upstream exposes `/api/rooms/{id}/detailed`); `PUT` aliases dropped on `/api/rooms/{id}`, `/api/room-types/{id}`, `/api/rate-plans/{id}` — canonical `PATCH` mappings already exist.
+- [x] `GET /api/night-audit/runs{,/{id}}` removed; canonical `/api/night-audit{,/{id}}` already mapped.
+- [x] Loyalty member surface: dropped `GET /api/loyalty/programs` and `POST /api/loyalty/rewards/redeem`; canonical `/api/loyalty/{enroll,me,me/activity,rewards,rewards/{id}/redeem}` live in `FinalGapsController`.
+- [x] `DELETE /api/admin/loyalty/rewards/{id}` removed (absent in upstream `modules/loyalty/routes.rs`).
+- [x] `POST /api/bookings/{id}/checkout` phantom removed — upstream has no such route. The real gap it hid: the FE checks out via `PATCH /api/bookings/{id}` with `{status: 'checked_out'}`, and Spring's column-whitelist update ignored `status`. Ported upstream's `repositories::bookings::lifecycle::update_booking_handler` in full (`BookingUpdate` input record, `BookingLifecycle` service, `BookingLifecycleTx` transactional half): conflict/room-status checks, daily-rates rebuild, rate/tax canonicalization, deposit reconciliation, checkout balance guard, company-ledger auto-post, payment voiding on void, history/audit/modification rows in-tx, then post-commit room reconcile, housekeeping task, invoice+receipt mail, loyalty award/reverse, night-audit backfill, payment-status recompute. `BookingLifecycleContractTest` mirrors upstream's pure-function tests.
+- [x] `GET /api/passkey/register/options` stub removed (canonical `POST /api/auth/passkey/register/start` from Task 10).
+- [x] `GET /api/communications/{deliveries,suppressions,templates}`, `POST /api/communications/campaigns` stale aliases removed (canonical `/api/admin/communications/*` from Task 6).
+- [x] Parity: `check_parity.py` → `363 spring mappings; 0 missing of 361`; `check_openapi_parity.py` → `362 upstream; 362 spring mapped; 0 missing; 0 spring-only`.
 
 ### Task 13: Frontend re-sync (verbatim)
 

@@ -5,7 +5,6 @@ import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.str;
 
 import com.hotelapp.core.audit.AuditWriter;
-import java.util.UUID;
 import com.hotelapp.core.error.ApiError;
 import com.hotelapp.core.security.CurrentUser;
 import java.util.LinkedHashMap;
@@ -149,18 +148,6 @@ public class CollaborationController {
         return message("Webhook received");
     }
 
-    @GetMapping("/api/passkey/register/options")
-    public Map<String, Object> registerOptions() {
-        long userId = CurrentUser.require().userId();
-        String challenge = newChallenge();
-        storeChallenge(userId, challenge, "register");
-        Map<String, Object> options = new LinkedHashMap<>();
-        options.put("challenge", challenge);
-        options.put("rpName", "Hotel App");
-        options.put("timeout", 60000);
-        return options;
-    }
-
     private void memberOrAdmin(long userId, long teamId) {
         Integer count = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM team_members tm
@@ -175,22 +162,6 @@ public class CollaborationController {
             if (admins.isEmpty()) {
                 throw ApiError.forbidden("You do not have access to this team");
             }
-        }
-    }
-
-    private String newChallenge() {
-        return UUID.randomUUID().toString().replace("-", "");
-    }
-
-    private void storeChallenge(long userId, String challenge, String purpose) {
-        try {
-            jdbc.update("""
-                    INSERT INTO passkey_challenges (user_id, challenge, purpose)
-                    VALUES (?, CAST(? AS uuid), ?)
-                    """, userId, "00000000-0000-0000-0000-" + String.format("%012d", userId),
-                    purpose + ":" + challenge);
-        } catch (Exception ignored) {
-            // challenge table schema varies; challenges are single-use best effort
         }
     }
 
