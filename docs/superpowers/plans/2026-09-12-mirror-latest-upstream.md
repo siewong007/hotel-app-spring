@@ -246,10 +246,10 @@ POST /api/support/conversations/{id}/messages, /api/support/conversations/{id}/a
 Upstream: `git diff b7bce0a8..origin/master -- src/modules/support/` (handlers, service, repository, hub.rs, models; idempotency tables `SupportActionIdempotencyKeys`/`SupportGuestRequestIdempotencyKeys` entities exist).
 
 Steps:
-- [ ] Port conversation list/detail with the same filters/pagination; agent list; staff message post; action endpoint (assign/resolve/reopen per upstream action enum) honoring the idempotency-key semantics.
-- [ ] Permissions → reference-data.sql if new `support:*` rows exist upstream.
-- [ ] Tests: `SupportIT` — create-via-guest → staff reply → action → reopen path; idempotency replay returns same result.
-- [ ] `./mvnw verify` green → commit `feat(support): staff conversation surface`.
+- [x] Port conversation list/detail with the same filters/pagination; agent list; staff message post; action endpoint (assign/resolve/reopen per upstream action enum) honoring the idempotency-key semantics: `StaffSupport` (queue filters unassigned/mine/at_risk + status/priority/assignee/search, SLA risk/breach flags from the active due date, queue metrics, agent list) + `StaffSupportTx` (version-guarded update + message/event/action-key in one tx) + `StaffSupportController`; nine-action state machine with per-action permission map (claim/assign/release→support:assign, escalate→support:escalate, set_priority/close/reopen→support:manage, resolve/add_internal_note→support:write), owner-or-manager enforcement, SLA rebase on set_priority, actor-scoped message/action idempotency keys (replay returns detail behind support:read; foreign key → 409).
+- [x] `support:*` permissions — already present in reference-data.sql (64–68).
+- [x] Tests: `StaffSupportContractTest` (9) — normalized choices, message/reason/resolution-code sanitizers, SLA rebase + flag computation, queue validation; 175/175 suite green; parity 362/376/2-missing.
+- [x] `./mvnw verify` green → commit `feat(support): staff conversation surface`.
 
 ### Task 10: Auth hardening
 

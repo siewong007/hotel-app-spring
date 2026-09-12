@@ -146,6 +146,73 @@ public class GuestSupport {
         throw ApiError.badRequest("Unsupported support category");
     }
 
+    static final List<String> SUPPORT_PRIORITIES = List.of("low", "normal", "high", "urgent");
+    static final List<String> SUPPORT_STATUSES =
+            List.of("waiting_for_staff", "waiting_for_guest", "resolved", "closed");
+    static final List<String> SUPPORT_ACTIONS = List.of("claim", "assign", "release",
+            "set_priority", "escalate", "resolve", "close", "reopen", "add_internal_note");
+    static final List<String> SUPPORT_QUEUES = List.of("unassigned", "mine",
+            "waiting_for_staff", "waiting_for_guest", "at_risk", "resolved", "closed");
+    static final int MAX_REASON_CHARS = 2_000;
+    static final int MAX_RESOLUTION_CODE_CHARS = 64;
+
+    static String validatePriority(String value) {
+        String normalized = normalizedChoice(value);
+        if (SUPPORT_PRIORITIES.contains(normalized)) {
+            return normalized;
+        }
+        throw ApiError.badRequest("Unsupported support priority");
+    }
+
+    static String validateStatus(String value) {
+        String normalized = normalizedChoice(value);
+        if (SUPPORT_STATUSES.contains(normalized)) {
+            return normalized;
+        }
+        throw ApiError.badRequest("Unsupported support status");
+    }
+
+    static String validateAction(String value) {
+        String normalized = normalizedChoice(value == null ? "" : value);
+        if (SUPPORT_ACTIONS.contains(normalized)) {
+            return normalized;
+        }
+        throw ApiError.badRequest("Unsupported support action");
+    }
+
+    /** {@code sanitize_optional_reason}. */
+    static String sanitizeOptionalReason(String value) {
+        if (value == null) {
+            return null;
+        }
+        String sanitized = Sanitizer.sanitizeNotes(value).trim();
+        if (sanitized.isEmpty()) {
+            return null;
+        }
+        if (sanitized.codePointCount(0, sanitized.length()) > MAX_REASON_CHARS) {
+            throw ApiError.badRequest(
+                    "Support notes cannot exceed " + MAX_REASON_CHARS + " characters");
+        }
+        return sanitized;
+    }
+
+    /** {@code sanitize_resolution_code}. */
+    static String sanitizeResolutionCode(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = normalizedChoice(value);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.codePointCount(0, normalized.length()) > MAX_RESOLUTION_CODE_CHARS
+                || !normalized.chars().allMatch(c -> (c >= 'a' && c <= 'z')
+                        || (c >= '0' && c <= '9') || c == '_')) {
+            throw ApiError.badRequest("Invalid resolution code");
+        }
+        return normalized;
+    }
+
     static String sanitizeRequiredMessage(String value) {
         String sanitized = Sanitizer.sanitizeNotes(value == null ? "" : value).trim();
         if (sanitized.isEmpty()) {
@@ -158,12 +225,12 @@ public class GuestSupport {
         return sanitized;
     }
 
-    private int reopenWindowDays() {
+    int reopenWindowDays() {
         return settings.getPositiveInt("support_reopen_window_days", DEFAULT_REOPEN_WINDOW_DAYS);
     }
 
     /** {@code priority_sla}: (first_response_minutes, resolution_minutes). */
-    private long[] prioritySla(String priority) {
+    long[] prioritySla(String priority) {
         long[] defaults = switch (priority) {
             case "urgent" -> new long[] {5, 30};
             case "high" -> new long[] {15, 120};

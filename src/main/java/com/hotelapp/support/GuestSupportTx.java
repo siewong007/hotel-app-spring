@@ -62,6 +62,51 @@ public class GuestSupportTx {
                     reopenCount, version);
         }
 
+        Mutation withAssignee(Long userId) {
+            return new Mutation(status, priority, assignedTeam, userId, escalationLevel,
+                    escalatedAt, firstResponseDueAt, resolutionDueAt, firstResponseAt,
+                    resolvedAt, closedAt, resolutionCode, resolutionSummary, reopenCount,
+                    expectedVersion);
+        }
+
+        Mutation withPriority(String nextPriority) {
+            return new Mutation(status, nextPriority, assignedTeam, assignedToUserId,
+                    escalationLevel, escalatedAt, firstResponseDueAt, resolutionDueAt,
+                    firstResponseAt, resolvedAt, closedAt, resolutionCode, resolutionSummary,
+                    reopenCount, expectedVersion);
+        }
+
+        Mutation withFirstResponseDueAt(OffsetDateTime dueAt) {
+            return new Mutation(status, priority, assignedTeam, assignedToUserId,
+                    escalationLevel, escalatedAt, dueAt, resolutionDueAt, firstResponseAt,
+                    resolvedAt, closedAt, resolutionCode, resolutionSummary, reopenCount,
+                    expectedVersion);
+        }
+
+        /** {@code escalate}: duty_manager team, cleared assignee, level+1 capped at 3. */
+        Mutation withEscalation(int nextLevel, OffsetDateTime at) {
+            return new Mutation(status, priority, "duty_manager", null, nextLevel, at,
+                    firstResponseDueAt, resolutionDueAt, firstResponseAt, resolvedAt,
+                    closedAt, resolutionCode, resolutionSummary, reopenCount, expectedVersion);
+        }
+
+        /** {@code resolve}: resolved_at now, closed cleared, first response backfilled. */
+        Mutation resolve(String code, String summary) {
+            OffsetDateTime now = OffsetDateTime.now();
+            return new Mutation("resolved", priority, assignedTeam, assignedToUserId,
+                    escalationLevel, escalatedAt, firstResponseDueAt, resolutionDueAt,
+                    firstResponseAt == null ? now : firstResponseAt, now, null,
+                    code, summary, reopenCount, expectedVersion);
+        }
+
+        /** {@code close}: resolved → closed, closed_at stamped. */
+        Mutation close() {
+            return new Mutation("closed", priority, assignedTeam, assignedToUserId,
+                    escalationLevel, escalatedAt, firstResponseDueAt, resolutionDueAt,
+                    firstResponseAt, resolvedAt, OffsetDateTime.now(), resolutionCode,
+                    resolutionSummary, reopenCount, expectedVersion);
+        }
+
         /** The resolved → waiting_for_staff transition shared by reply and reopen. */
         Mutation reopen(OffsetDateTime resolutionDueAt) {
             return new Mutation("waiting_for_staff", priority, assignedTeam, assignedToUserId,
