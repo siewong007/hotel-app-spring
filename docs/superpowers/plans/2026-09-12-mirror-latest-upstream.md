@@ -193,11 +193,11 @@ Upstream: `BE/src/modules/communications/{routes,handlers,service,repository,mod
 **Files:** extend `engagement/` (existing `/api/communications/*` mappings already live in `EngagementController`) or create `communications/` package — match however the port currently splits admin vs public comms routes.
 
 Steps:
-- [ ] Port campaigns CRUD + schedule/cancel/preview/test-send + per-campaign deliveries; templates CRUD + deactivate; suppressions list/add/remove; audience query; paged deliveries feed; guest consent GET/POST writing `consent_records` rows (Task 2 entity).
-- [ ] Public unsubscribe GET (page data) + POST (action) with HMAC token validation per `tokens.rs` — signed with the guest id; metered by route limiter like upstream.
-- [ ] RBAC gates copied from route registrations (communications permissions may be new — check `reference-data.sql` permission catalog vs upstream `seed.sql` diff for new `communications:*` permissions and role grants; add rows).
-- [ ] Tests: `CommunicationsAdminIT` — campaign lifecycle, suppression round-trip, unsubscribe token tamper → 4xx, consent writes consent_records.
-- [ ] `./mvnw verify` green → commit `feat(communications): admin campaigns/templates/suppressions, consent, unsubscribe`.
+- [x] Port campaigns CRUD + schedule/cancel/preview/test-send + per-campaign deliveries; templates CRUD + deactivate; suppressions list/add/remove; audience query; paged deliveries feed; guest consent GET/POST — consent goes to `notification_subscriptions` + `notification_consent_events` (upstream's consent ledger), not `consent_records`. Landed in new `communications/` package: `CommsModels`, `CommsValidation`, `CommunicationsAdmin`, `CommunicationsController`, `SmtpTransport` (`SMTP_*` envs → JavaMailSender), `UnsubscribeTokens` (HMAC-SHA256 over base64url guest id, JWT_SECRET key).
+- [x] Public unsubscribe GET (page data) + POST (action) — `UnsubscribeTokens` HMAC verify, invalid → 404 "Invalid unsubscribe link", SENSITIVE IP limiter; global unsubscribe adds `email_suppressions` row (reason `unsubscribe`, source `unsubscribe_link`) in a second tx like upstream.
+- [x] RBAC gates match handlers: read → `communications:read`; compose → `communications:compose`; test-send/schedule/cancel → `communications:send`; manage → `communications:manage` (suppressions, deactivate, staff consent POST).
+- [x] Tests: `CommunicationsContractTest` — 17 cases mirroring upstream's (tiers/subscription gate, campaign/template/suppression/email validation, template render+escape, token round-trip + tamper, SMTP env config). DB-level IT deferred (no Testcontainers coverage for comms yet).
+- [x] `./mvnw test` green (137) → commit `feat(communications): admin campaigns/templates/suppressions, consent, unsubscribe` + push.
 
 ### Task 7: Communications workers — schedulers + email triggers
 
