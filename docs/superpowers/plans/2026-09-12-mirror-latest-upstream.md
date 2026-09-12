@@ -142,12 +142,12 @@ Upstream sources:
 - Key commits: `f9aa99a6` (profile + devices #162), `2ff8f664` (manage credentials #161), `d48ab2f9` (pre-check-in), `9a496614` (verify by name + booking number — check whether the existing `/guest-portal/verify` in the port needs the same change), `3f34576a` (hash portal tokens), `d880110d` (tokens out of URLs), `235fb117` (payment-config requires booking/guest session), `1cf73f5c` (tourism tax on foreign bookings).
 
 Steps:
-- [ ] Read the whole `git diff b7bce0a8..origin/master -- src/routes/guest_portal.rs` first; tabulate which endpoints are new vs modified.
-- [ ] Port the guest-token/session validation changes first (hashed portal tokens — `GuestPortalSessionsEntity` may need a `token_hash` column; check patch/entity diffs).
-- [ ] Implement endpoint groups in order: me-core (profile/bookings/credits/transactions/membership/benefits/vouchers) → me-payments + booking payments → me-ekyc → me-support → auth flows (claim-account/logout/auto-checkin/pre-checkin/payment-config). Each group: copy request/response DTO field names byte-identical from upstream models.
-- [ ] Permission/session semantics: all `me/*` behind the guest bearer scheme (existing `GuestTokenService`-equivalent in `core/security`); `payment-config` now requires a booking or guest session (401s otherwise, exact upstream body).
-- [ ] Tests: `PortalMeIT` — verify→me→profile patch→booking quote→cancel→notification prefs round-trip; payment-config gate; pre-check-in by name+booking number; claim-account flow.
-- [ ] `./mvnw verify` green → commit `feat(guest-portal): me hub, payments, ekyc, support, pre-check-in, claim-account`.
+- [x] Read the whole `git diff b7bce0a8..origin/master -- src/routes/guest_portal.rs` first; tabulate which endpoints are new vs modified.
+- [x] Port the guest-token/session validation changes first (hashed portal tokens — `GuestPortalSessionsEntity` may need a `token_hash` column; check patch/entity diffs). → `PortalAuth`: SHA-256 session hashes, `sha256:`-prefixed booking tokens with legacy plaintext read, `x-booking-access-token` header-first resolution.
+- [x] Implement endpoint groups in order: me-core (profile/bookings/credits/transactions/membership/benefits/vouchers) → me-payments + booking payments → me-ekyc → me-support → auth flows (claim-account/logout/auto-checkin/pre-checkin/payment-config). Each group: copy request/response DTO field names byte-identical from upstream models. **(4a landed me-core + all payments + auth flows + auto/pre-check-in; me-ekyc → Task 4d, me-support/prefs/promos/vouchers → Task 4e, availability/options/quote → Task 4c)**
+- [x] Permission/session semantics: all `me/*` behind the guest bearer scheme (existing `GuestTokenService`-equivalent in `core/security`); `payment-config` now requires a booking or guest session (401s otherwise, exact upstream body). → `PortalAuth.requireGuestSession*` + `require*BookingToken*`; `payment-config` accepts either.
+- [ ] Tests: `PortalMeIT` — verify→me→profile patch→booking quote→cancel→notification prefs round-trip; payment-config gate; pre-check-in by name+booking number; claim-account flow. **(`PortalContractTest` unit coverage landed — token hashing/legacy match, plausibility, header-vs-path resolution, eKYC normalisation, receipt signatures; IT still owed — needs Docker/Postgres)**
+- [x] `./mvnw verify` green → commit `feat(guest-portal): me hub, payments, ekyc, support, pre-check-in, claim-account`. **(`mvnw test` 58/58 green; `verify` ITs need Docker)**
 
 ### Task 5: Public booking flows + payment recovery + hold release
 

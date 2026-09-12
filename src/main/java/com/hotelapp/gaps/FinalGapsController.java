@@ -347,69 +347,6 @@ public class FinalGapsController {
         return summary;
     }
 
-    @PostMapping("/api/guest-portal/session")
-    public Map<String, Object> createPortalSession(@RequestBody Map<String, Object> body) {
-        return jdbc.queryForMap("SELECT 1 AS placeholder") == null ? new LinkedHashMap<>()
-                : portalSession(body);
-    }
-
-    private Map<String, Object> portalSession(Map<String, Object> body) {
-        String token = str(body, "token");
-        if (token != null && !token.isBlank()) {
-            List<Map<String, Object>> rows = jdbc.queryForList("""
-                    SELECT s.expires_at, b.id AS booking_id, b.booking_number
-                    FROM guest_portal_sessions s JOIN bookings b ON b.id = s.booking_id
-                    WHERE s.token = ?
-                    """, token);
-            if (!rows.isEmpty()) {
-                return rows.get(0);
-            }
-        }
-        throw ApiError.unauthorized("Invalid or expired portal session");
-    }
-
-    @PostMapping("/api/guest-portal/booking/{token}/payments/paypal/create-order")
-    public Map<String, Object> paypalCreateOrder(@PathVariable String token,
-            @RequestBody(required = false) Map<String, Object> body) {
-        portalBooking(token);
-        if (!paypalEnabled()) {
-            throw ApiError.serviceUnavailable("PayPal is not configured");
-        }
-        Map<String, Object> order = new LinkedHashMap<>();
-        order.put("order_id", "PP-" + System.currentTimeMillis());
-        order.put("status", "CREATED");
-        return order;
-    }
-
-    @PostMapping("/api/guest-portal/booking/{token}/payments/paypal/capture")
-    public Map<String, Object> paypalCapture(@PathVariable String token,
-            @RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> booking = portalBooking(token);
-        if (!paypalEnabled()) {
-            throw ApiError.serviceUnavailable("PayPal is not configured");
-        }
-        jdbc.update("INSERT INTO payments (booking_id, amount, payment_method, payment_date, "
-                + "status, notes) VALUES (?, ?, 'paypal', CURRENT_DATE, "
-                + "'completed', 'captured via guest portal')",
-                ((Number) booking.get("id")).longValue(), dec(body.get("amount")));
-        audit.event(null, "paypal_payment_captured", "payment",
-                ((Number) booking.get("id")).longValue(), null);
-        return message("PayPal payment captured successfully");
-    }
-
-    @PostMapping("/api/guest-portal/booking/{token}/payments/{paymentId}/receipt")
-    public Map<String, Object> uploadReceipt(@PathVariable String token,
-            @PathVariable long paymentId, @RequestBody Map<String, Object> body) {
-        Map<String, Object> booking = portalBooking(token);
-        jdbc.update("""
-                UPDATE payment_receipt_requests SET reference_number = COALESCE(?,
-                    reference_number) WHERE booking_id = ? AND id = ?
-                """, str(body, "reference_number"), booking.get("id"), paymentId);
-        audit.event(null, "guest_portal_receipt_uploaded", "payment_receipt_request", paymentId,
-                null);
-        return message("Receipt uploaded successfully");
-    }
-
     @PostMapping("/api/rooms/{id}/execute-change")
     public Map<String, Object> executeRoomChange(@PathVariable long id,
             @RequestBody Map<String, Object> body) {
@@ -454,11 +391,6 @@ public class FinalGapsController {
                 List.of("loyalty:read", "loyalty:manage"));
     }
 
-    private boolean paypalEnabled() {
-        return Boolean.parseBoolean(System.getenv().getOrDefault("PAYPAL_ENABLED", "false"))
-                && System.getenv("PAYPAL_CLIENT_ID") != null;
-    }
-
     private Long guestIdFor(long userId) {
         Long guestId = jdbc.queryForObject(
                 "SELECT guest_id FROM users WHERE id = ?", Long.class, userId);
@@ -476,18 +408,6 @@ public class FinalGapsController {
             throw ApiError.notFound("No loyalty membership for this account");
         }
         return memberId;
-    }
-
-    private Map<String, Object> portalBooking(String token) {
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT b.* FROM bookings b
-                JOIN guest_portal_sessions s ON s.booking_id = b.id
-                WHERE s.token = ? AND s.expires_at > NOW()
-                """, token);
-        if (rows.isEmpty()) {
-            throw ApiError.unauthorized("Invalid or expired portal session");
-        }
-        return rows.get(0);
     }
 
     private BigDecimal dec(Object value) {

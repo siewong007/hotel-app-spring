@@ -29,6 +29,8 @@ public final class ApiErrorResponses {
             case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_RETRY_AFTER -> HttpStatus.TOO_MANY_REQUESTS;
             case PROFILE_INCOMPLETE -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case TWO_FACTOR_ENROLLMENT_REQUIRED -> HttpStatus.FORBIDDEN;
+            case GUEST_NAME_TAKEN -> HttpStatus.CONFLICT;
         };
     }
 
@@ -38,6 +40,18 @@ public final class ApiErrorResponses {
             body.put("error", "Complete your profile before making a booking.");
             body.put("code", "profile_incomplete");
             body.put("missing_profile_fields", error.missingFields());
+            return body;
+        }
+        if (error.kind() == ApiError.Kind.TWO_FACTOR_ENROLLMENT_REQUIRED) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", error.message());
+            body.put("code", "two_factor_enrollment_required");
+            return body;
+        }
+        if (error.kind() == ApiError.Kind.GUEST_NAME_TAKEN) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", error.message());
+            body.put("code", "guest_name_taken");
             return body;
         }
         String message = switch (error.kind()) {
@@ -57,6 +71,7 @@ public final class ApiErrorResponses {
             case TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_RETRY_AFTER ->
                 ErrorMessagePolisher.polish(error.message(), "Too many requests. Please slow down and try again.");
             case PROFILE_INCOMPLETE -> "Complete your profile before making a booking.";
+            case TWO_FACTOR_ENROLLMENT_REQUIRED, GUEST_NAME_TAKEN -> error.message();
         };
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", message);

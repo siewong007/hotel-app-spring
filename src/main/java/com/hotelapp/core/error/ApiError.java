@@ -19,7 +19,9 @@ public final class ApiError extends RuntimeException {
         SERVICE_UNAVAILABLE,
         TOO_MANY_REQUESTS,
         TOO_MANY_REQUESTS_RETRY_AFTER,
-        PROFILE_INCOMPLETE
+        PROFILE_INCOMPLETE,
+        TWO_FACTOR_ENROLLMENT_REQUIRED,
+        GUEST_NAME_TAKEN
     }
 
     private final Kind kind;
@@ -91,5 +93,16 @@ public final class ApiError extends RuntimeException {
 
     public static ApiError profileIncomplete(List<String> missingFields) {
         return new ApiError(Kind.PROFILE_INCOMPLETE, null, null, List.copyOf(missingFields));
+    }
+
+    public static ApiError twoFactorEnrollmentRequired() {
+        return new ApiError(Kind.TWO_FACTOR_ENROLLMENT_REQUIRED,
+                "Your role requires two-factor authentication. Ask an administrator to "
+                        + "help you finish setting it up.", null, null);
+    }
+
+    public static ApiError guestNameTaken() {
+        return new ApiError(Kind.GUEST_NAME_TAKEN,
+                "This nickname is already used. Please choose another.", null, null);
     }
 }

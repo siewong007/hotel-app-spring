@@ -25,12 +25,20 @@ public class AuditWriter {
 
     public void event(Long userId, String action, String resourceType, Long resourceId,
             Object details) {
+        event(userId, action, resourceType, resourceId, details, null, null);
+    }
+
+    /** Full AuditEvent shape — upstream carries ip_address + user_agent. */
+    public void event(Long userId, String action, String resourceType, Long resourceId,
+            Object details, String ipAddress, String userAgent) {
         try {
             jdbc.update("""
-                    INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
-                    VALUES (?, ?, ?, ?, CAST(? AS jsonb))
+                    INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details,
+                        ip_address, user_agent)
+                    VALUES (?, ?, ?, ?, CAST(? AS jsonb), CAST(? AS inet), ?)
                     """, userId, action, resourceType, resourceId,
-                    details == null ? null : objectMapper.writeValueAsString(details));
+                    details == null ? null : objectMapper.writeValueAsString(details),
+                    ipAddress, userAgent);
         } catch (Exception e) {
             log.warn("Audit log failed: {} - Action: {}, Resource: {}", e.getMessage(), action,
                     resourceType);

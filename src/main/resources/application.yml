@@ -18,3 +18,14 @@ app:
   desktop-mode: ${HOTEL_DESKTOP_MODE:false}
   allowed-origins-raw: ${ALLOWED_ORIGINS:*}
   trust-proxy-headers: ${TRUST_PROXY_HEADERS:false}
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:3000}
+  smtp-from-name: ${SMTP_FROM_NAME:Salim Inn}
+  paypal-enabled: ${PAYPAL_ENABLED:false}
+  paypal-client-id: ${PAYPAL_CLIENT_ID:}
+  paypal-client-secret: ${PAYPAL_CLIENT_SECRET:}
+  paypal-api-base: ${PAYPAL_API_BASE:https://api-m.sandbox.paypal.com}
+  paypal-webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  hotel-bank-name: ${HOTEL_BANK_NAME:Maybank}
+  hotel-bank-account-name: ${HOTEL_BANK_ACCOUNT_NAME:Salim Inn}
+  hotel-bank-account-number: ${HOTEL_BANK_ACCOUNT_NUMBER:511270052595}
+  hotel-bank-account-number: ${HOTEL_BANK_ACCOUNT_NUMBER:511270052595}
