@@ -29,7 +29,8 @@ public class CorsConfig {
         } else {
             List<String> origins = parseOrigins(raw);
             configuration.setAllowedOriginPatterns(origins);
-            configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+            configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept",
+                    "cf-turnstile-response", "x-client-timezone"));
             configuration.setAllowCredentials(true);
         }
         configuration.setAllowedMethods(

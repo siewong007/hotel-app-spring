@@ -256,15 +256,17 @@ Steps:
 Upstream sources: `git diff b7bce0a8..origin/master -- src/routes/auth.rs src/handlers/auth.rs src/services/auth.rs src/services/google_identity.rs src/routes/two_factor.rs src/routes/passkey.rs src/modules/consent/` plus commits `d24b577e` (lookup #135), `1c0b6aa3`+`86817bf8` (Turnstile), `7478e7b1`+`b11ab13d`+`0726f36a`+`49f53df1` (One Tap + consent notice + race), `0f87ae87`+`52fea640` (2FA enforcement + routing), `0f14c2d7`+`6c23756f`+`64a77489` (passkey re-auth + shared session write-through), `efac4599` (authenticator hotel name).
 
 Steps:
-- [ ] `POST /api/auth/login/lookup` — existence check before password (exact response shape + rate limiter from upstream).
-- [ ] Turnstile: verify `cf-turnstile-response` (or upstream field name) on login/register behind `TURNSTILE_*` env vars; fail-open/closed semantics copied from upstream handler.
-- [ ] Google One Tap: extend the Google endpoint to create accounts with consent-by-notice; fix the create-race (resolve instead of reject) per `49f53df1`; persist consent rows (`modules/consent` → `consent_records`).
-- [ ] 2FA enrollment enforcement: on login, roles in `require_two_factor_roles` with no enrolled factor get the enrollment-pending response upstream returns (copy the exact status/body — likely a distinct code the FE routes on); honor `require_two_factor_grace_days`.
-- [ ] Passkey registration now requires recent re-auth (upstream `reauthenticated_at`/session marker — port the check + the session minting through the shared write-through used elsewhere).
-- [ ] `refresh_tokens.client_timezone` captured from the login request (upstream header/field name — grep the diff).
-- [ ] Authenticator prompts carry `hotel_name` when issuer/RP settings are blank (Task 2 seeding made them blank).
-- [ ] Tests: extend `AuthFlowIT` — lookup 200/404, Turnstile bypass-when-unset, 2FA-required response for seeded privileged role, client_timezone persisted.
-- [ ] `./mvnw verify` green → commit `feat(auth): login lookup, turnstile, one-tap, 2fa enforcement, passkey re-auth`.
+- [x] `POST /api/auth/login/lookup` — existence check before password (exact response shape + rate limiter from upstream).
+- [x] Turnstile: verify `cf-turnstile-response` (or upstream field name) on login/register behind `TURNSTILE_*` env vars; fail-open/closed semantics copied from upstream handler.
+- [x] Google One Tap: extend the Google endpoint to create accounts with consent-by-notice; fix the create-race (resolve instead of reject) per `49f53df1`; persist consent rows (`modules/consent` → `consent_records`).
+- [x] 2FA enrollment enforcement: on login, roles in `require_two_factor_roles` with no enrolled factor get the enrollment-pending response upstream returns (copy the exact status/body — likely a distinct code the FE routes on); honor `require_two_factor_grace_days`.
+- [x] Passkey registration now requires recent re-auth (upstream `reauthenticated_at`/session marker — port the check + the session minting through the shared write-through used elsewhere).
+- [x] `refresh_tokens.client_timezone` captured from the login request (upstream header/field name — grep the diff).
+- [x] Authenticator prompts carry `hotel_name` when issuer/RP settings are blank (Task 2 seeding made them blank).
+- [x] Tests: extend `AuthFlowIT` — lookup 200/404, Turnstile bypass-when-unset, 2FA-required response for seeded privileged role, client_timezone persisted.
+- [x] `./mvnw verify` green → commit `feat(auth): login lookup, turnstile, one-tap, 2fa enforcement, passkey re-auth`.
+
+**Landed** — `auth/Turnstile` (siteverify, configured-vs-visitor error split, token bound, identical-key guard), `auth/GoogleIdentityService` (JWKS 1h cache + bounded unknown-KID refresh, RS256 iss/aud/exp validation, username/fingerprint/display-name helpers), `auth/GoogleAuthTx` (savepoint + 3-attempt race resolution, consent-gated create), `auth/TotpSecrets` (`enc1:` AES-GCM seal, base32 secrets, XXXXX×4 backup codes, SHA-256 at rest + legacy plaintext), `auth/TwoFactorService`+`TwoFactorController` (setup/enable/disable/status/verify/regenerate over `/api/auth/2fa/*` + `/api/profile/2fa/*` aliases, sensitive-limited), `auth/PasskeyService`+`PasskeyController` (step-up gate, full WebAuthn verify — CBOR attestation, COSE ES256, sign-counter, one-time 5-min challenges, session mint), `profile/Profile{Service,Controller}` (get/patch/complete/password/sessions/passkeys, `sid`-marked current session), `core/web/ClientTimezone` (`x-client-timezone` sanitiser → `refresh_tokens.client_timezone`), `AuthService` rewrite (post-verify `is_verified` ordering, atomic lockout, recovery-code login path, 2FA enrollment policy, consent-gated register, Google resolution), `AuthResponse` + enrollment fields, `AccountGapsController` stub purge (real impls now own the routes). `AuthHardeningContractTest` 21 cases; suite 196 green.
 
 ### Task 11: Remaining deltas sweep
 

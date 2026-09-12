@@ -2,6 +2,7 @@ package com.hotelapp.auth.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Instant;
 import java.util.List;
 
 public record AuthResponse(
@@ -14,5 +15,8 @@ public record AuthResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty("recovery_codes_remaining") Integer recoveryCodesRemaining,
         @JsonProperty("profile_complete") boolean profileComplete,
-        @JsonProperty("missing_profile_fields") List<String> missingProfileFields) {
+        @JsonProperty("missing_profile_fields") List<String> missingProfileFields,
+        @JsonProperty("two_factor_enrollment_required") boolean twoFactorEnrollmentRequired,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("two_factor_enrollment_deadline") Instant twoFactorEnrollmentDeadline) {
 }

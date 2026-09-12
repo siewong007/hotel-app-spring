@@ -6,8 +6,6 @@ import static com.hotelapp.rates.RatesController.message;
 import static com.hotelapp.rates.RatesController.num;
 import static com.hotelapp.rates.RatesController.str;
 
-import com.hotelapp.auth.AuthService;
-import com.hotelapp.auth.RefreshCookie;
 import com.hotelapp.core.AfterCommit;
 import com.hotelapp.core.audit.AuditWriter;
 import com.hotelapp.core.error.ApiError;
@@ -44,7 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountGapsController {
 
     private final JdbcTemplate jdbc;
-    private final AuthService authService;
     private final AuditWriter audit;
     private final RateLimitService rateLimiter;
     private final RbacService rbac;
@@ -52,11 +49,10 @@ public class AccountGapsController {
 
     private final BookingEmails bookingEmails;
 
-    public AccountGapsController(JdbcTemplate jdbc, AuthService authService, AuditWriter audit,
+    public AccountGapsController(JdbcTemplate jdbc, AuditWriter audit,
             RateLimitService rateLimiter, RbacService rbac, TransactionTemplate tx,
             BookingEmails bookingEmails) {
         this.jdbc = jdbc;
-        this.authService = authService;
         this.audit = audit;
         this.rateLimiter = rateLimiter;
         this.rbac = rbac;
@@ -64,284 +60,6 @@ public class AccountGapsController {
         this.bookingEmails = bookingEmails;
     }
 
-    @PostMapping("/api/auth/register")
-    public Map<String, Object> register(@RequestBody Map<String, Object> body,
-            HttpServletRequest request) {
-        var decision = rateLimiter.check(RateLimitService.Category.REGISTER,
-                clientIp(request));
-        if (!decision.allowed()) {
-            throw ApiError.tooManyRequestsRetryAfter("Too many registration attempts."
-                    + " Please try again in " + decision.retryAfterSecs() + " seconds.",
-                    decision.retryAfterSecs());
-        }
-        String username = str(body, "username");
-        String email = str(body, "email");
-        String password = str(body, "password");
-        if (username == null || email == null || password == null) {
-            throw ApiError.badRequest("Username, email and password are required");
-        }
-        if (!username.matches("^[a-z0-9][a-z0-9_-]{2,99}$")) {
-            throw ApiError.badRequest(
-                    "Username may only contain letters, digits, dots, underscores and dashes");
-        }
-        try {
-            jdbc.update("""
-                    INSERT INTO users (username, email, password_hash, user_type, is_active)
-                    VALUES (?, ?, ?, 'staff', true)
-                    """, username, email.toLowerCase(),
-                    new BCryptPasswordEncoder(12).encode(password));
-        } catch (org.springframework.dao.DuplicateKeyException e) {
-            throw ApiError.conflict("Username or email already exists");
-        }
-        audit.event(null, "user_registered", "user", null, Map.of("username", username));
-        Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("message",
-                "Registration successful. Please verify your email before logging in.");
-        return responseBody;
-    }
-
-    @PostMapping("/api/auth/verify-email")
-    public Map<String, Object> verifyEmail(@RequestBody Map<String, Object> body) {
-        String token = str(body, "token");
-        if (token == null || token.isBlank()) {
-            throw ApiError.badRequest("Verification token is required");
-        }
-        int updated = jdbc.update("""
-                UPDATE users SET is_verified = true, email_verification_token = NULL,
-                    email_token_expires_at = NULL
-                WHERE email_verification_token = ?
-                  AND (email_token_expires_at IS NULL OR email_token_expires_at > NOW())
-                """, AuthService.sha256Hex(token));
-        if (updated == 0) {
-            throw ApiError.badRequest("Invalid or expired verification token");
-        }
-        return message("Email verified successfully");
-    }
-
-    @PostMapping("/api/auth/resend-verification")
-    public Map<String, Object> resendVerification(@RequestBody Map<String, Object> body) {
-        String email = str(body, "email");
-        if (email == null) {
-            throw ApiError.badRequest("Email is required");
-        }
-        // SMTP worker delivery is behind env config; token issuance matches Rust.
-        jdbc.update("""
-                UPDATE users SET email_verification_token = '', email_token_expires_at =
-                    NOW() + INTERVAL '24 hours' WHERE email = ? AND is_verified = false
-                """, email.toLowerCase());
-        return message("If that address exists, a verification link has been sent");
-    }
-
-    @PostMapping("/api/auth/google")
-    public Map<String, Object> googleLogin() {
-        String clientId = System.getenv("GOOGLE_CLIENT_ID");
-        if (clientId == null || clientId.isBlank()) {
-            throw ApiError.serviceUnavailable("Google login is not configured");
-        }
-        throw ApiError.serviceUnavailable("Google identity verification unavailable");
-    }
-
-    @GetMapping("/api/auth/2fa/status")
-    public Map<String, Object> twofaStatus() {
-        long userId = CurrentUser.require().userId();
-        return jdbc.queryForMap("""
-                SELECT COALESCE(two_factor_enabled, false) AS enabled
-                FROM users WHERE id = ?
-                """, userId);
-    }
-
-    @PostMapping("/api/auth/2fa/setup")
-    public Map<String, Object> setup2fa() {
-        long userId = CurrentUser.require().userId();
-        String secret = randomBase32();
-        jdbc.update("UPDATE users SET two_factor_secret = ? WHERE id = ?", secret, userId);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("secret", secret);
-        body.put("otpauth_url", "otpauth://totp/HotelApp?secret=" + secret);
-        return body;
-    }
-
-    @PostMapping("/api/auth/2fa/verify")
-    public Map<String, Object> verify2fa(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        String code = str(body, "code");
-        String secret = jdbc.queryForObject(
-                "SELECT two_factor_secret FROM users WHERE id = ?", String.class, userId);
-        boolean valid = code != null && new com.hotelapp.auth.Rfc6238TotpVerifier()
-                .verify(secret, code);
-        if (!valid) {
-            throw ApiError.unauthorized("Invalid 2FA code");
-        }
-        jdbc.update("UPDATE users SET two_factor_enabled = true WHERE id = ?", userId);
-        audit.event(userId, "two_factor_enabled", "user", userId, null);
-        return message("Two-factor authentication enabled successfully");
-    }
-
-    @PostMapping("/api/auth/2fa/enable")
-    public Map<String, Object> enable2fa(@RequestBody Map<String, Object> body) {
-        return verify2fa(body);
-    }
-
-    @PostMapping("/api/auth/2fa/disable")
-    public Map<String, Object> disable2fa(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        jdbc.update("""
-                UPDATE users SET two_factor_enabled = false, two_factor_secret = NULL,
-                    two_factor_recovery_codes = NULL WHERE id = ?
-                """, userId);
-        audit.event(userId, "two_factor_disabled", "user", userId, null);
-        return message("Two-factor authentication disabled successfully");
-    }
-
-    @PostMapping("/api/auth/2fa/regenerate-backup-codes")
-    public Map<String, Object> regenerateBackupCodes() {
-        long userId = CurrentUser.require().userId();
-        List<String> codes = new java.util.ArrayList<>();
-        for (int i = 0; i < 8; i++) {
-            codes.add(randomBase32().substring(0, 10));
-        }
-        jdbc.update("UPDATE users SET two_factor_recovery_codes = ? WHERE id = ?",
-                codes.toArray(new String[0]), userId);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("recovery_codes", codes);
-        return body;
-    }
-
-    @PostMapping("/api/auth/passkey/register/start")
-    public Map<String, Object> passkeyRegisterStart() {
-        CurrentUser.require();
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("challenge", java.util.UUID.randomUUID().toString().replace("-", ""));
-        body.put("timeout", 60000);
-        return body;
-    }
-
-    @PostMapping("/api/auth/passkey/register/finish")
-    public Map<String, Object> passkeyRegisterFinish(
-            @RequestBody(required = false) Map<String, Object> body) {
-        CurrentUser.require();
-        return message("Passkey registered successfully");
-    }
-
-    @PostMapping("/api/auth/passkey/login/start")
-    public Map<String, Object> passkeyLoginStart(
-            @RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> options = new LinkedHashMap<>();
-        options.put("challenge", java.util.UUID.randomUUID().toString().replace("-", ""));
-        options.put("timeout", 60000);
-        return options;
-    }
-
-    @PostMapping("/api/auth/passkey/login/finish")
-    public Map<String, Object> passkeyLoginFinish(
-            @RequestBody(required = false) Map<String, Object> body,
-            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
-        // Full WebAuthn assertion verification requires stored credentials;
-        // until a passkey exists for the caller this mirrors the Rust 401.
-        throw ApiError.unauthorized("Invalid or expired token");
-    }
-
-    @GetMapping("/api/profile")
-    public Map<String, Object> profile() {
-        long userId = CurrentUser.require().userId();
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT id, username, email, full_name, phone, avatar_url, is_active,
-                       two_factor_enabled, created_at FROM users WHERE id = ?
-                """, userId);
-        if (rows.isEmpty()) {
-            throw ApiError.notFound("User not found");
-        }
-        return rows.get(0);
-    }
-
-    @PatchMapping("/api/profile")
-    public Map<String, Object> updateProfile(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        var sets = new LinkedHashMap<String, Object>();
-        for (String column : List.of("full_name", "phone", "avatar_url")) {
-            if (body.containsKey(column)) {
-                sets.put(column + " = ?", body.get(column));
-            }
-        }
-        if (!sets.isEmpty()) {
-            sets.put("updated_at = NOW()", null);
-            jdbc.update("UPDATE users SET " + String.join(", ", sets.keySet())
-                    + " WHERE id = ?", sets.values().toArray());
-        }
-        return profile();
-    }
-
-    @PostMapping("/api/profile/password")
-    public Map<String, Object> updatePassword(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        String currentPassword = str(body, "current_password");
-        String newPassword = str(body, "new_password");
-        if (currentPassword == null || newPassword == null) {
-            throw ApiError.badRequest("Current and new passwords are required");
-        }
-        String hash = jdbc.queryForObject(
-                "SELECT password_hash FROM users WHERE id = ?", String.class, userId);
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
-        if (hash == null || !encoder.matches(currentPassword, hash)) {
-            throw ApiError.unauthorized("Current password is incorrect");
-        }
-        jdbc.update("UPDATE users SET password_hash = ?, password_changed_at = NOW() "
-                + "WHERE id = ?", encoder.encode(newPassword), userId);
-        audit.event(userId, "password_changed", "user", userId, null);
-        return message("Password updated successfully");
-    }
-
-    @PostMapping("/api/profile/complete")
-    public Map<String, Object> completeProfile(@RequestBody Map<String, Object> body) {
-        long userId = CurrentUser.require().userId();
-        jdbc.update("UPDATE users SET full_name = COALESCE(?, full_name), "
-                + "phone = COALESCE(?, phone) WHERE id = ?",
-                str(body, "full_name"), str(body, "phone"), userId);
-        return profile();
-    }
-
-    @GetMapping("/api/profile/sessions")
-    public List<Map<String, Object>> sessions() {
-        long userId = CurrentUser.require().userId();
-        return jdbc.queryForList("""
-                SELECT id::text AS id, ip_address, user_agent, created_at, last_used_at,
-                       expires_at
-                FROM refresh_tokens WHERE user_id = ? AND revoked_at IS NULL
-                  AND is_revoked = false AND expires_at > NOW()
-                ORDER BY created_at DESC
-                """, userId);
-    }
-
-    @DeleteMapping("/api/profile/sessions/{sessionId}")
-    public Map<String, Object> revokeSession(@PathVariable String sessionId) {
-        long userId = CurrentUser.require().userId();
-        jdbc.update("""
-                UPDATE refresh_tokens SET is_revoked = true, revoked_at = CURRENT_TIMESTAMP
-                WHERE id = CAST(? AS uuid) AND user_id = ?
-                """, sessionId, userId);
-        return message("Session revoked successfully");
-    }
-
-    @GetMapping("/api/profile/passkeys")
-    public List<Map<String, Object>> passkeys() {
-        long userId = CurrentUser.require().userId();
-        return jdbc.queryForList("SELECT * FROM passkeys WHERE user_id = ?", userId);
-    }
-
-    @PatchMapping("/api/profile/passkeys/{id}")
-    public Map<String, Object> updatePasskey(@PathVariable long id,
-            @RequestBody Map<String, Object> body) {
-        jdbc.update("UPDATE passkeys SET name = ? WHERE id = ? AND user_id = ?",
-                str(body, "name"), id, CurrentUser.require().userId());
-        return message("Passkey updated successfully");
-    }
-
-    @DeleteMapping("/api/profile/passkeys/{id}")
-    public Map<String, Object> deletePasskey(@PathVariable long id) {
-        jdbc.update("DELETE FROM passkeys WHERE id = ? AND user_id = ?", id,
-                CurrentUser.require().userId());
-        return message("Passkey deleted successfully");
-    }
 
     @GetMapping("/api/admin/payments/pending")
     public List<Map<String, Object>> pendingPayments() {
@@ -784,30 +502,6 @@ public class AccountGapsController {
                         "settings:manage"));
     }
 
-    @PostMapping("/api/profile/2fa/setup")
-    public Map<String, Object> profileSetup2fa() {
-        return setup2fa();
-    }
-
-    @GetMapping("/api/profile/2fa/status")
-    public Map<String, Object> profileStatus2fa() {
-        return twofaStatus();
-    }
-
-    @PostMapping("/api/profile/2fa/verify")
-    public Map<String, Object> profileVerify2fa(@RequestBody Map<String, Object> body) {
-        return verify2fa(body);
-    }
-
-    @PostMapping("/api/profile/2fa/enable")
-    public Map<String, Object> profileEnable2fa(@RequestBody Map<String, Object> body) {
-        return verify2fa(body);
-    }
-
-    @PostMapping("/api/profile/2fa/disable")
-    public Map<String, Object> profileDisable2fa(@RequestBody Map<String, Object> body) {
-        return disable2fa(body);
-    }
 
     private static String clientIp(HttpServletRequest request) {
         String trusted = System.getenv("TRUST_PROXY_HEADERS");

@@ -12,6 +12,16 @@ public class AppProperties {
     private boolean desktopMode;
     private String allowedOriginsRaw;
     private boolean trustProxyHeaders;
+
+    private boolean turnstileEnabled;
+    private String turnstileSiteKey;
+    private String turnstileSecretKey;
+    private String turnstileVerifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+    private String googleClientId;
+    private String passkeyRpId = "localhost";
+    private String totpEncryptionKey;
+    private boolean skipEmailVerification;
     private String publicBaseUrl = "http://localhost:3000";
     private String smtpFromName = "Salim Inn";
 
@@ -171,5 +181,98 @@ public class AppProperties {
 
     public void setTrustProxyHeaders(boolean trustProxyHeaders) {
         this.trustProxyHeaders = trustProxyHeaders;
+    }
+
+    /** Mirrors TurnstileConfig::trimmed. */
+    private static String trimmed(String value) {
+        if (value == null) {
+            return null;
+        }
+        String t = value.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    /** Mirrors TurnstileConfig::keys_are_identical. */
+    public boolean turnstileKeysAreIdentical() {
+        String site = trimmed(turnstileSiteKey);
+        String secret = trimmed(turnstileSecretKey);
+        return site != null && site.equals(secret);
+    }
+
+    /** Mirrors TurnstileConfig::is_configured — on AND both distinct keys. */
+    public boolean isTurnstileConfigured() {
+        return turnstileEnabled
+                && trimmed(turnstileSiteKey) != null
+                && trimmed(turnstileSecretKey) != null
+                && !turnstileKeysAreIdentical();
+    }
+
+    /** Mirrors TurnstileConfig::active_secret. */
+    public String turnstileActiveSecret() {
+        return isTurnstileConfigured() ? trimmed(turnstileSecretKey) : null;
+    }
+
+    public boolean isTurnstileEnabled() {
+        return turnstileEnabled;
+    }
+
+    public void setTurnstileEnabled(boolean turnstileEnabled) {
+        this.turnstileEnabled = turnstileEnabled;
+    }
+
+    public String getTurnstileSiteKey() {
+        return turnstileSiteKey;
+    }
+
+    public void setTurnstileSiteKey(String turnstileSiteKey) {
+        this.turnstileSiteKey = turnstileSiteKey;
+    }
+
+    public String getTurnstileSecretKey() {
+        return turnstileSecretKey;
+    }
+
+    public void setTurnstileSecretKey(String turnstileSecretKey) {
+        this.turnstileSecretKey = turnstileSecretKey;
+    }
+
+    public String getTurnstileVerifyUrl() {
+        return turnstileVerifyUrl;
+    }
+
+    public void setTurnstileVerifyUrl(String turnstileVerifyUrl) {
+        this.turnstileVerifyUrl = turnstileVerifyUrl;
+    }
+
+    public String getGoogleClientId() {
+        return googleClientId;
+    }
+
+    public void setGoogleClientId(String googleClientId) {
+        this.googleClientId = googleClientId;
+    }
+
+    public String getPasskeyRpId() {
+        return passkeyRpId;
+    }
+
+    public void setPasskeyRpId(String passkeyRpId) {
+        this.passkeyRpId = passkeyRpId;
+    }
+
+    public String getTotpEncryptionKey() {
+        return totpEncryptionKey;
+    }
+
+    public void setTotpEncryptionKey(String totpEncryptionKey) {
+        this.totpEncryptionKey = totpEncryptionKey;
+    }
+
+    public boolean isSkipEmailVerification() {
+        return skipEmailVerification;
+    }
+
+    public void setSkipEmailVerification(boolean skipEmailVerification) {
+        this.skipEmailVerification = skipEmailVerification;
     }
 }

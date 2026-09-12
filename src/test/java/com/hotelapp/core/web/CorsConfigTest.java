@@ -43,7 +43,8 @@ class CorsConfigTest {
         assertThat(config.getAllowedOriginPatterns())
                 .containsExactly("https://app.example.com", "https://admin.example.com");
         assertThat(config.getAllowedHeaders())
-                .containsExactly("Authorization", "Content-Type", "Accept");
+                .containsExactly("Authorization", "Content-Type", "Accept",
+                        "cf-turnstile-response", "x-client-timezone");
         assertThat(config.getAllowedMethods())
                 .containsExactly("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
         assertThat(config.getAllowCredentials()).isTrue();

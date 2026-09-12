@@ -81,4 +81,34 @@ public class HotelSettings {
         }
         return fallback;
     }
+
+    /**
+     * {@code get_hotel_display_name}: the branded name for authenticator
+     * prompts — the configured key when set, else {@code hotel_name}, else
+     * {@code "Hotel"}.
+     */
+    public String getHotelDisplayName(String key) {
+        return getString(key, getString("hotel_name", "Hotel"));
+    }
+
+    /**
+     * {@code SettingsRepository::updated_at}: when the setting last changed —
+     * the policy-effective-from stamp for {@code require_two_factor_roles}.
+     */
+    public java.time.Instant updatedAt(String key) {
+        try {
+            Object value = jdbc.queryForObject(
+                    "SELECT updated_at FROM system_settings WHERE key = ?",
+                    Object.class, key);
+            if (value instanceof java.sql.Timestamp ts) {
+                return ts.toInstant();
+            }
+            if (value instanceof java.time.OffsetDateTime odt) {
+                return odt.toInstant();
+            }
+            return null;
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
 }
