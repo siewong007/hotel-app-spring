@@ -92,14 +92,32 @@ public class PortalPayments {
         return tx.createBankTransferClaim(booking);
     }
 
+    /** {@code create_bank_transfer_claim_for_capability}. */
+    public PaymentActionResponse createBankTransferClaim(Map<String, Object> booking,
+            Long capabilityId) {
+        return tx.createBankTransferClaim(booking, capabilityId);
+    }
+
     // ------------------------------------------------------------------
     // PayPal
     // ------------------------------------------------------------------
 
     /** {@code create_paypal_order}. */
     public PaypalCreateOrderResponse createPaypalOrder(Map<String, Object> booking) {
+        return createPaypalOrder(booking, null);
+    }
+
+    /**
+     * {@code create_paypal_order_for_capability} — same business rules as the
+     * portal path; the capability is spent inside the pending-payment
+     * transaction. PayPal is contacted only after that transaction commits, so
+     * a PayPal refusal releases the payment AND restores the capability —
+     * otherwise the guest would hold a spent link that bought nothing.
+     */
+    public PaypalCreateOrderResponse createPaypalOrder(Map<String, Object> booking,
+            Long capabilityId) {
         long bookingId = ((Number) booking.get("id")).longValue();
-        long paymentId = tx.insertPendingPaypalPayment(booking);
+        long paymentId = tx.insertPendingPaypalPayment(booking, capabilityId);
 
         String customId = bookingId + ":" + paymentId;
         String orderId;
@@ -109,6 +127,17 @@ public class PortalPayments {
         } catch (ApiError error) {
             releaseFailedPaypalPayment(paymentId,
                     "PayPal could not create an order. No payment was captured.");
+            if (capabilityId != null) {
+                // Best effort: the guest already has an error, and failing here
+                // too would replace it with a less useful one.
+                try {
+                    tx.restoreCapability(capabilityId, paymentId);
+                } catch (Exception restoreError) {
+                    log.error("Failed to restore payment retry capability {} "
+                            + "after a PayPal order failure: {}",
+                            capabilityId, restoreError.toString());
+                }
+            }
             throw error;
         }
 
@@ -190,6 +219,14 @@ public class PortalPayments {
             }
             throw ApiError.badRequest("This PayPal payment is no longer available for capture.");
         }
+    }
+
+    /** {@code find_gateway_order_id} — the PayPal order id, if created yet. */
+    public String findGatewayOrderId(long paymentId) {
+        List<String> rows = jdbc.query(
+                "SELECT gateway_payment_intent_id FROM payments WHERE id = ?",
+                (rs, i) -> rs.getString(1), paymentId);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     /** {@code release_failed_paypal_payment} — CAS pending/processing -> failed. */

@@ -73,6 +73,61 @@ public class PortalBookingOps {
                 + "AND status NOT IN ('void', 'completed')", bookingId);
     }
 
+    /** {@code completed_booking_payment_total} — completed non-refund sum. */
+    public java.math.BigDecimal completedBookingPaymentTotal(long bookingId) {
+        java.math.BigDecimal total = jdbc.queryForObject("""
+                SELECT COALESCE(SUM(amount) FILTER (
+                    WHERE status = 'completed'
+                      AND COALESCE(payment_type, 'booking') != 'refund'), 0)
+                FROM payments WHERE booking_id = ?
+                """, java.math.BigDecimal.class, bookingId);
+        return total == null ? java.math.BigDecimal.ZERO : total;
+    }
+
+    /**
+     * {@code restore_complimentary_credits_tx} — return comp-night credits to
+     * the guest on void/release. Returns the nights credited (0 when the
+     * booking was not complimentary or the room's type is gone).
+     */
+    public int restoreComplimentaryCredits(Map<String, Object> booking) {
+        if (!Boolean.TRUE.equals(booking.get("is_complimentary"))) {
+            return 0;
+        }
+        LocalDate checkIn = toLocalDate(booking.get("check_in_date"));
+        LocalDate checkOut = toLocalDate(booking.get("check_out_date"));
+        int nights = (int) Math.max(0, java.time.temporal.ChronoUnit.DAYS
+                .between(checkIn, checkOut));
+        Object roomId = booking.get("room_id");
+        if (roomId == null) {
+            return 0;
+        }
+        List<Long> roomTypeIds = jdbc.query(
+                "SELECT room_type_id FROM rooms WHERE id = ?",
+                (rs, i) -> rs.getLong(1), ((Number) roomId).longValue());
+        if (roomTypeIds.isEmpty()) {
+            return 0;
+        }
+        jdbc.update("""
+                INSERT INTO guest_complimentary_credits
+                    (guest_id, room_type_id, nights_available, notes, created_at, updated_at)
+                VALUES (?, ?, ?, 'Refunded from voided complimentary booking',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT (guest_id, room_type_id)
+                DO UPDATE SET nights_available =
+                    guest_complimentary_credits.nights_available + EXCLUDED.nights_available,
+                    updated_at = CURRENT_TIMESTAMP
+                """, ((Number) booking.get("guest_id")).longValue(),
+                roomTypeIds.get(0), nights);
+        return nights;
+    }
+
+    private static LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate d) {
+            return d;
+        }
+        return LocalDate.parse(String.valueOf(value).substring(0, 10));
+    }
+
     /** {@code record_booking_history_tx}. */
     public void recordBookingHistory(long bookingId, String previousStatus, String newStatus,
             Long changedBy, String changeReason, Map<String, Object> metadata) {

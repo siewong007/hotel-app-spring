@@ -86,9 +86,48 @@ public class PortalPaymentTx {
         return id;
     }
 
-    /** {@code create_bank_transfer_claim_inner} — the whole DB flow is one tx. */
+    /** {@code create_bank_transfer_claim}. */
     @Transactional
     public PaymentActionResponse createBankTransferClaim(Map<String, Object> booking) {
+        return createBankTransferClaim(booking, null);
+    }
+
+    /**
+     * {@code consume_capability_tx} — spend the recovery capability inside the
+     * caller's transaction, recording the payment it produced. The guard lives
+     * in the WHERE clause, so two concurrent submissions cannot both pass it.
+     */
+    private boolean consumeCapability(long capabilityId, long replacementPaymentId) {
+        return jdbc.update("""
+                UPDATE payment_retry_capabilities
+                SET consumed_at = CURRENT_TIMESTAMP, replacement_payment_id = ?
+                WHERE id = ? AND consumed_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                """, replacementPaymentId, capabilityId) == 1;
+    }
+
+    /**
+     * {@code restore_capability} — give back a capability whose payment was
+     * released after PayPal refused the order. Scoped to the payment it was
+     * spent on, so it can never resurrect a capability that funded a
+     * different, live payment.
+     */
+    public boolean restoreCapability(long capabilityId, long spentOnPaymentId) {
+        return jdbc.update("""
+                UPDATE payment_retry_capabilities
+                SET consumed_at = NULL, replacement_payment_id = NULL
+                WHERE id = ? AND replacement_payment_id = ?
+                """, capabilityId, spentOnPaymentId) == 1;
+    }
+
+    /**
+     * {@code create_bank_transfer_claim_inner} — the whole DB flow is one tx.
+     * {@code capabilityId} spends the emailed recovery capability inside the
+     * same transaction as the insert: if it turns out already spent, the whole
+     * transaction rolls back and the guest is never charged twice.
+     */
+    @Transactional
+    public PaymentActionResponse createBankTransferClaim(Map<String, Object> booking,
+            Long capabilityId) {
         long bookingId = ((Number) booking.get("id")).longValue();
         String currency = PortalPayments.bookingCurrency(booking);
         BigDecimal amount = (BigDecimal) booking.get("total_amount");
@@ -114,6 +153,12 @@ public class PortalPaymentTx {
         details.put("source", "guest_portal");
         audit.event(null, "payment_created", "payment", paymentId, details);
 
+        if (capabilityId != null && !consumeCapability(capabilityId, paymentId)) {
+            // Another submission won the race, or the link expired between the
+            // lookup and here. Dropping the transaction unwinds the payment.
+            throw ApiError.conflict("This payment link has already been used.");
+        }
+
         return new PaymentActionResponse(paymentId, "pending", "pending_confirmation");
     }
 
@@ -124,6 +169,13 @@ public class PortalPaymentTx {
      */
     @Transactional
     public long insertPendingPaypalPayment(Map<String, Object> booking) {
+        return insertPendingPaypalPayment(booking, null);
+    }
+
+    /** Same insert, additionally spending the recovery capability in-tx. */
+    @Transactional
+    public long insertPendingPaypalPayment(Map<String, Object> booking,
+            Long capabilityId) {
         long bookingId = ((Number) booking.get("id")).longValue();
         lockBookingForPayment(bookingId);
         ensureBookingAwaitingPayment(bookingStatusForPayment(bookingId));
@@ -140,6 +192,10 @@ public class PortalPaymentTx {
         details.put("method", "paypal");
         details.put("source", "guest_portal");
         audit.event(null, "payment_created", "payment", paymentId, details);
+
+        if (capabilityId != null && !consumeCapability(capabilityId, paymentId)) {
+            throw ApiError.conflict("This payment link has already been used.");
+        }
         return paymentId;
     }
 

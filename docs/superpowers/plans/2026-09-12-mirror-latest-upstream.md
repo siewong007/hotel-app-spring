@@ -169,10 +169,10 @@ Upstream sources:
 - Commits: `0af2fe4f` (anonymous checkout + stale hold release), `7df96103` (fast booking with only a guest name), `03355785` (anonymous receipt upload), `d930b057` (email payment retry #141), `57744fc7` (anonymous Complete-payment deep link #131), `ab946136` (bank details required).
 
 Steps:
-- [ ] Port `payment_retry_capabilities` lifecycle: issue on rejected payment (email link), GET recovery page data by token hash, consume-once on replacement payment, PayPal order re-capture after consumption. `sha256:`-prefixed hex hash, same scheme as booking-access tokens.
-- [ ] Port booking quote/offers/reservations (public, rate-limited like upstream) incl. anonymous checkout semantics and `guest_name_taken` interplay (Task 3).
-- [ ] `@Scheduled` unpaid-hold-release worker mirroring `unpaid_hold_scheduler.rs` (reads setting each tick; logs audit rows like upstream).
-- [ ] `POST /api/bookings/{id}/release` staff endpoint — port gate + side effects from `src/routes/bookings.rs` + handlers diff.
+- [x] Port `payment_retry_capabilities` lifecycle: issue on rejected payment (email link), GET recovery page data by token hash, consume-once on replacement payment, PayPal order re-capture after consumption. `sha256:`-prefixed hex hash, same scheme as booking-access tokens. **(landed — `paymentrecovery/PaymentRecovery` + `PaymentRecoveryController`: view/bank-transfer/paypal create+capture/receipt; consume inside the claim tx in `PortalPaymentTx`; restore on PayPal order failure; duplicate resolves to the existing payment; `PaymentRecoveryContractTest` 9 cases)**
+- [x] Port booking quote/offers/reservations (public, rate-limited like upstream) incl. anonymous checkout semantics and `guest_name_taken` interplay (Task 3). **(landed in Task 4c — `guestbooking/` package)**
+- [x] `@Scheduled` unpaid-hold-release worker mirroring `unpaid_hold_scheduler.rs` (reads setting each tick; logs audit rows like upstream). **(landed — `bookings/UnpaidHoldScheduler` 15-min fixedDelay + `BookingRelease.releaseStaleUnpaidHolds`: website/online sources only, 200/sweep cap, per-booking re-check under current state)**
+- [x] `POST /api/bookings/{id}/release` staff endpoint — port gate + side effects from `src/routes/bookings.rs` + handlers diff. **(landed — `bookings:update` gate, `BookingRelease` + `BookingReleaseTx.performRelease`: pending_payment only, collected-money refused, reason 4..500, void+releaseRoom+voidPayments+restoreCredits+recompute+history+modification+audit in one tx)**
 - [ ] Receipt upload for anonymous bookers reuses the bank-transfer receipt pipeline (Task 10 payments delta if shared).
 - [ ] Tests: `PublicBookingIT` — quote→reserve→recover-payment happy path; capability single-use + expiry; hold release flips stale unpaid booking.
 - [ ] `./mvnw verify` green → commit `feat(booking): public quote/offers/reservations, payment recovery capabilities, unpaid hold release`.

@@ -32,10 +32,13 @@ public class BookingsController {
 
     private final JdbcTemplate jdbc;
     private final AuditWriter audit;
+    private final BookingRelease bookingRelease;
 
-    public BookingsController(JdbcTemplate jdbc, AuditWriter audit) {
+    public BookingsController(JdbcTemplate jdbc, AuditWriter audit,
+            BookingRelease bookingRelease) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.bookingRelease = bookingRelease;
     }
 
     @GetMapping("/api/bookings")
@@ -242,6 +245,20 @@ public class BookingsController {
         history(bookingId.longValue(), userId, "voided", str(body, "reason"));
         audit.event(userId, "booking_voided", "booking", bookingId.longValue(), null);
         return message("Booking voided successfully");
+    }
+
+    /**
+     * Release the room held by an unpaid booking. Same permission as voiding —
+     * this is a narrower, reason-required form of the same override, not a
+     * wider one. ({@code release_booking} upstream.)
+     */
+    @PostMapping("/api/bookings/{id}/release")
+    public Map<String, Object> release(@PathVariable long id,
+            @RequestBody Map<String, Object> body) {
+        long userId = CurrentUser.require().userId();
+        gatePermission(userId, "bookings:update");
+        return bookingRelease.releasePendingPaymentBooking(
+                userId, id, str(body, "reason"));
     }
 
     @PostMapping("/api/bookings/{id}/reactivate")
